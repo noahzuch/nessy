@@ -1,0 +1,13 @@
+{
+  "name": "nessy-marketplace",
+  "owner": {
+    "name": "Noah Zuch"
+  },
+  "plugins": [
+    {
+      "name": "nessy",
+      "source": ".",
+      "description": "Read-before-write enforcement for Claude Code"
+    }
+  ]
+}
