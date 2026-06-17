@@ -1,0 +1,5 @@
+{
+  "name": "nessy",
+  "version": "0.1.0",
+  "description": "Read-before-write enforcement for Claude Code (skeleton)"
+}
