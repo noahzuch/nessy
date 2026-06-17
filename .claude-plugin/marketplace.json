@@ -6,7 +6,10 @@
   "plugins": [
     {
       "name": "nessy",
-      "source": ".",
+      "source": {
+        "source": "github",
+        "repo": "noahzuch/nessy"
+      },
       "description": "Read-before-write enforcement for Claude Code"
     }
   ]
