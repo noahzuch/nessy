@@ -6,9 +6,21 @@
 
 **Architecture:** A Claude Code plugin laid out per the official convention (see spec §2). TypeScript source compiled to JS, both committed to the repo. The CLI separates its entry point (`main.ts`) from dispatch logic (`index.ts`) so dispatch is unit-testable. The noop behavior in Plan 1 is replaced with real init/remove behavior in Plan 2.
 
-**Tech Stack:** TypeScript (strict, ES2022, NodeNext ESM), Node 20+, vitest for tests, npm for package management.
+**Tech Stack:** TypeScript (strict, ES2022, NodeNext ESM), Node 22.x (pinned via `mise`), vitest for tests, npm for package management.
 
 **Reference:** Design spec at `docs/superpowers/specs/2026-06-17-nessy-read-before-write-design.md`. Read §1 (Goals/Non-goals), §2 (Architecture), §6 (CLI Commands), §7 (Slash Commands) before starting this plan.
+
+## Toolchain note — read this first
+
+Node is managed per-project via [`mise`](https://mise.jdx.dev/). Task 1 adds a `.mise.toml` and runs `mise install` to provision the required Node version locally. **Every `npm` and `node` invocation in this plan must be run through `mise exec --`** unless your shell has mise activation hooks in effect. Example:
+
+- `npm install` → `mise exec -- npm install`
+- `node dist/cli/main.js` → `mise exec -- node dist/cli/main.js`
+- `npm test` → `mise exec -- npm test`
+
+If your shell has `eval "$(mise activate bash)"` (or equivalent) loaded, you can omit the prefix because mise injects the correct Node into PATH automatically. Subagents executing this plan in non-interactive shells should assume activation is **not** in effect and always use the explicit prefix.
+
+The `bin/nessy` shim built later in the plan invokes `node` bare — it's the *end-user* runtime, not a dev-time invocation, and end users have their own Node setup.
 
 **Out of scope for Plan 1** (deferred to Plan 2): real `nessy init` behavior, real `nessy remove` behavior, all hook scripts (`record-read`, `check-reads`, `wipe-agent`, `wipe-session`, `block-nessy-cli`), all `src/lib/` modules, integration tests for hooks, resolution of §9 Open Questions in the spec.
 
@@ -25,9 +37,33 @@ The repo's git index has pre-existing staged deletions of `cli/*.py` files (a di
 ### Task 1: Initialize npm + TypeScript + vitest scaffolding
 
 **Files:**
+- Create: `/Users/noah.zuch/nessy/.mise.toml`
 - Create: `/Users/noah.zuch/nessy/package.json`
 - Create: `/Users/noah.zuch/nessy/tsconfig.json`
 - Create: `/Users/noah.zuch/nessy/.gitignore` (or modify if it already exists)
+
+- [ ] **Step 0: Pin Node via mise**
+
+Write `/Users/noah.zuch/nessy/.mise.toml`:
+
+```toml
+[tools]
+node = "22"
+```
+
+Then provision Node from this config:
+
+```bash
+mise install
+```
+
+Expected: mise downloads and installs Node 22.x into its local data directory. Verify:
+
+```bash
+mise exec -- node --version
+```
+
+Expected output: a version string starting with `v22.` (or whatever 22.x mise resolved to).
 
 - [ ] **Step 1: Create `package.json`**
 
@@ -102,7 +138,7 @@ Do **not** add `dist/` to `.gitignore` — per the spec, the compiled output is 
 From `/Users/noah.zuch/nessy/`, run:
 
 ```bash
-npm install
+mise exec -- npm install
 ```
 
 Expected: `node_modules/` populated, `package-lock.json` created, no errors.
@@ -118,7 +154,7 @@ export const NESSY_SKELETON_OK = true;
 Run:
 
 ```bash
-npm run build
+mise exec -- npm run build
 ```
 
 Expected: `dist/_smoke.js` exists. Inspect it:
@@ -153,7 +189,7 @@ describe("vitest smoke", () => {
 Run:
 
 ```bash
-npm test
+mise exec -- npm test
 ```
 
 Expected: 1 test passes.
@@ -168,8 +204,8 @@ rmdir tests
 - [ ] **Step 9: Commit**
 
 ```bash
-git add package.json package-lock.json tsconfig.json .gitignore
-git commit -m "build: initialize npm + typescript + vitest scaffolding"
+git add .mise.toml package.json package-lock.json tsconfig.json .gitignore
+git commit -m "build: initialize mise + npm + typescript + vitest scaffolding"
 ```
 
 ---
