@@ -1,0 +1,8 @@
+node_modules/
+*.log
+.DS_Store
+.idea/
+.vscode/
+.claude/settings.local.json
+
+# dist/ is committed (see spec §2 Installation and Updates)

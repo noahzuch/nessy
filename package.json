@@ -1,0 +1,20 @@
+{
+  "name": "nessy",
+  "version": "0.1.0",
+  "description": "Claude Code plugin: read-before-write enforcement (Plan 1 skeleton)",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}
