@@ -1,4 +1,4 @@
-{
+ {
   "name": "nessy-marketplace",
   "owner": {
     "name": "Noah Zuch"
@@ -6,10 +6,7 @@
   "plugins": [
     {
       "name": "nessy",
-      "source": {
-        "source": "github",
-        "repo": "noahzuch/nessy"
-      },
+      "source": "./",
       "description": "Read-before-write enforcement for Claude Code"
     }
   ]
