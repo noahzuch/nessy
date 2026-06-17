@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Find the directory of this script, resolving one level of symlinks.
+SOURCE="${BASH_SOURCE[0]}"
+if [ -L "$SOURCE" ]; then
+  SOURCE="$(readlink "$SOURCE")"
+fi
+SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+exec node "$PLUGIN_ROOT/dist/cli/main.js" "$@"
