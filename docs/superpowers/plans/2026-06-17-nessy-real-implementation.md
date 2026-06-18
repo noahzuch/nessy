@@ -4,7 +4,7 @@
 
 **Goal:** Replace Plan 1's noop CLI with real `nessy init` / `nessy remove`, implement all five hooks (`record-read`, `check-reads`, `wipe-agent`, `wipe-session`, `block-nessy-cli`), and the supporting `src/lib/` modules they depend on. After Plan 2, Nessy enforces the read-before-write standards-drift rule end-to-end per the design spec.
 
-**Architecture:** Pure functions in `src/lib/` (no I/O at module load, no Claude-Code-specific shapes); hook scripts in `src/hooks/` that wire stdin/stdout/exit-code to the lib; CLI subcommands in `src/cli/` that consume `templates/default-config.yml` for `init` defaults. All TDD per module/hook.
+**Architecture:** Pure functions in `src/lib/` (no I/O at module load, no Claude-Code-specific shapes); hook scripts in `src/hooks/` that wire stdin/stdout/exit-code to the lib; CLI subcommands in `src/cli/` consume `templates/default-config.yml` for `init` defaults and are exposed via [Citty](https://github.com/unjs/citty) — a small (~20 KB), TypeScript-native CLI framework whose `defineCommand({ args: {...} })` shape gives us inferred-typed argument access in `run({ args })`. The pattern: each command exports a pure testable function (e.g. `nessyInit(print, cwd)`) plus a thin Citty `defineCommand` wrapper that handles arg parsing, exit codes, and routing. The hand-rolled `dispatch` from Plan 1 is replaced by Citty's root command. All TDD per module/hook.
 
 **Tech Stack:** Same as Plan 1 (TypeScript strict, Node 22 via mise, vitest, NodeNext ESM, npm).
 
@@ -12,7 +12,7 @@
 
 ## Toolchain note
 
-All `npm` and `node` invocations below use `mise exec --` prefix unless the shell has mise activation in effect (see Plan 1's toolchain note). The `bin/nessy` shim in production still invokes `node` bare — this is for end-user runtime, not dev-time.
+All `npm` and `node` invocations below use mise activation (see Plan 1's toolchain note). The `bin/nessy` shim in production still invokes `node` bare — this is for end-user runtime, not dev-time.
 
 ## Working directory
 
@@ -2761,22 +2761,39 @@ git commit -m "feat: add default .nessy/config.yml template"
 
 ---
 
-### Task 16: Real `nessy init`
+### Task 16: Citty integration + real `nessy init`
 
-Replaces the noop in `src/cli/init.ts` with real `.nessy/` creation.
+Adds the Citty CLI framework, refactors the CLI entry point to use it, and replaces the noop `nessyInit` with real `.nessy/` creation. After this task, the CLI dispatches via Citty (replacing Plan 1's hand-rolled `dispatch`) and `nessy init` actually creates the project's `.nessy/` directory from `templates/default-config.yml`.
 
 **Files:**
+- Add: `citty` dep in `/Users/noah.zuch/nessy/package.json`
 - Modify: `/Users/noah.zuch/nessy/src/cli/init.ts`
+- Modify: `/Users/noah.zuch/nessy/src/cli/index.ts` (replaces hand-rolled `dispatch` with Citty `mainCommand`)
+- Modify: `/Users/noah.zuch/nessy/src/cli/main.ts` (replaces argv plumbing with `runMain`)
 - Modify: `/Users/noah.zuch/nessy/tests/cli/init.test.ts`
-- Modify: `/Users/noah.zuch/nessy/tests/cli/index.test.ts` (dispatch test for `init` route — Plan 1's exact-string output assertion no longer holds)
+- Delete: `/Users/noah.zuch/nessy/tests/cli/index.test.ts` (Plan 1's hand-rolled dispatch tests no longer apply — Citty owns routing)
 
-- [ ] **Step 1: Update tests to assert real behavior**
+- [ ] **Step 1: Install Citty**
+
+```bash
+mise exec -- npm install citty@^0.1.6
+```
+
+- [ ] **Step 2: Update `init.test.ts` to test real behavior**
+
+The function signature stays `nessyInit(print, cwd)` — `init` has no flags, so no options-object refactor is needed. The Citty wrapper added in Step 4 calls this same pure function.
 
 Replace `/Users/noah.zuch/nessy/tests/cli/init.test.ts` with:
 
 ```ts
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import {
+  mkdtempSync,
+  rmSync,
+  existsSync,
+  readFileSync,
+  mkdirSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { nessyInit } from "../../src/cli/init.js";
@@ -2813,122 +2830,163 @@ describe("nessyInit (real)", () => {
 });
 ```
 
-- [ ] **Step 2: Run, confirm fail**
+- [ ] **Step 3: Run, confirm fail**
 
 ```bash
 mise exec -- npm test -- tests/cli/init.test.ts
 ```
 
-- [ ] **Step 3: Implement**
+Expected: tests fail because `nessyInit` is still the Plan 1 noop and doesn't touch the filesystem.
+
+- [ ] **Step 4: Implement real `nessyInit` and its Citty wrapper**
 
 Replace `/Users/noah.zuch/nessy/src/cli/init.ts` with:
 
 ```ts
+import { defineCommand } from "citty";
 import { existsSync, mkdirSync, writeFileSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function loadTemplate(): string {
-  // dist/cli/init.js → ../templates/default-config.yml lives at plugin root
+  // dist/cli/init.js → <pluginRoot>/templates/default-config.yml
   // dist layout: <pluginRoot>/dist/cli/init.js
-  // template:    <pluginRoot>/templates/default-config.yml
   const pluginRoot = join(__dirname, "..", "..");
-  return readFileSync(join(pluginRoot, "templates", "default-config.yml"), "utf8");
+  return readFileSync(
+    join(pluginRoot, "templates", "default-config.yml"),
+    "utf8",
+  );
 }
 
+/**
+ * Pure function — testable in isolation. `print` and `cwd` are injected
+ * so tests don't have to touch process state.
+ */
 export function nessyInit(
   print: (msg: string) => void,
   cwd: string,
 ): number {
   const nessy = join(cwd, ".nessy");
   if (existsSync(nessy)) {
-    print(`.nessy/ already exists at ${cwd}; remove it first or edit the existing config.`);
+    print(
+      `.nessy/ already exists at ${cwd}; remove it first or edit the existing config.`,
+    );
     return 1;
   }
   mkdirSync(nessy);
   writeFileSync(join(nessy, "config.yml"), loadTemplate());
-  print(`Initialized .nessy/ at ${cwd}. Edit .nessy/config.yml to define rules.`);
+  print(
+    `Initialized .nessy/ at ${cwd}. Edit .nessy/config.yml to define rules.`,
+  );
   return 0;
 }
-```
 
-- [ ] **Step 4: Update the dispatch test for `init`**
-
-Plan 1's `tests/cli/index.test.ts` asserted that `dispatch(["init"], ..., "/tmp/p")` produces a specific noop output string. Now that `nessyInit` does real filesystem work, that test would attempt to create `.nessy/` inside a hardcoded path that doesn't exist. Update the dispatch test to use a real tempdir and assert on filesystem effects instead.
-
-Open `/Users/noah.zuch/nessy/tests/cli/index.test.ts`. Find this test:
-
-```ts
-it("routes 'init' to nessyInit", () => {
-  const output: string[] = [];
-  const code = dispatch(["init"], (m) => output.push(m), "/tmp/p");
-  expect(code).toBe(0);
-  expect(output).toEqual([
-    "[nessy init — noop] would create .nessy/ at /tmp/p",
-  ]);
+export const initCommand = defineCommand({
+  meta: {
+    name: "init",
+    description: "Initialize .nessy/ in the current working directory",
+  },
+  run() {
+    const code = nessyInit(
+      (m) => process.stderr.write(m + "\n"),
+      process.cwd(),
+    );
+    process.exit(code);
+  },
 });
 ```
 
-Replace with:
+- [ ] **Step 5: Replace hand-rolled dispatch with Citty `mainCommand`**
+
+Replace `/Users/noah.zuch/nessy/src/cli/index.ts` with:
 
 ```ts
-it("routes 'init' to nessyInit (creates .nessy/ at the given cwd)", () => {
-  const tmp = mkdtempSync(join(tmpdir(), "nessy-dispatch-init-"));
-  try {
-    const output: string[] = [];
-    const code = dispatch(["init"], (m) => output.push(m), tmp);
-    expect(code).toBe(0);
-    expect(existsSync(join(tmp, ".nessy/config.yml"))).toBe(true);
-  } finally {
-    rmSync(tmp, { recursive: true, force: true });
-  }
+import { defineCommand } from "citty";
+import { initCommand } from "./init.js";
+// removeCommand is added in Task 17.
+
+export const mainCommand = defineCommand({
+  meta: {
+    name: "nessy",
+    description: "Read-before-write enforcement for Claude Code",
+  },
+  subCommands: {
+    init: initCommand,
+    // remove: <added in Task 17>
+  },
 });
 ```
 
-Add the required imports at the top of the file (next to the existing vitest imports):
+Replace `/Users/noah.zuch/nessy/src/cli/main.ts` with:
 
 ```ts
-import { mkdtempSync, rmSync, existsSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { runMain } from "citty";
+import { mainCommand } from "./index.js";
+
+runMain(mainCommand);
 ```
 
-- [ ] **Step 5: Run, confirm pass**
+- [ ] **Step 6: Delete the obsolete dispatch tests**
 
 ```bash
-mise exec -- npm test -- tests/cli/init.test.ts tests/cli/index.test.ts
+git rm tests/cli/index.test.ts
 ```
 
-Expected: 2 tests pass in `init.test.ts`, all 5 dispatch tests still pass in `index.test.ts`.
+The 5 Plan 1 dispatch tests (routing init/remove, `--help`, no args, unknown subcommand) tested our hand-rolled `dispatch` function — that function no longer exists. Citty owns routing now, and Citty's own routing is tested upstream. There's no Nessy logic at this layer that needs its own integration test.
 
-- [ ] **Step 6: Build dist/ to keep it current**
+- [ ] **Step 7: Run the suite**
+
+```bash
+mise exec -- npm test
+```
+
+Expected: 2 tests pass in `init.test.ts`. The 2 Plan 1 `remove` tests still pass (they remain noop-shaped until Task 17). The 5 deleted `index.test.ts` tests are gone. Net test count at this checkpoint is **(prior total − 5 dispatch tests deleted + 1 net new init test = prior − 4)**. Adjust to whatever the actual run reports.
+
+- [ ] **Step 8: Build dist/**
 
 ```bash
 mise exec -- npm run build
 ```
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 9: Smoke-test the compiled CLI**
 
 ```bash
-git add src/cli/init.ts tests/cli/init.test.ts tests/cli/index.test.ts dist/
-git commit -m "feat: real nessy init creates .nessy/ from template"
+mise exec -- node dist/cli/main.js --help
+```
+
+Expected: Citty prints auto-generated help text listing `init` as a subcommand. (Citty writes help text to stdout; per spec §6 this is a known minor deviation from "stderr-only" — help is end-user output emitted only on explicit `--help` request.)
+
+Run a real init in an isolated tempdir to confirm filesystem effects:
+
+```bash
+TEMP=$(mktemp -d) && (cd "$TEMP" && mise exec -- node /Users/noah.zuch/nessy/dist/cli/main.js init && ls -la .nessy/ && cat .nessy/config.yml) && rm -rf "$TEMP"
+```
+
+Expected: `.nessy/config.yml` appears with the template contents, then the temp dir is cleaned up.
+
+- [ ] **Step 10: Commit**
+
+The deletion of `tests/cli/index.test.ts` was staged by Step 6's `git rm`. Stage the rest and commit:
+
+```bash
+git add package.json package-lock.json src/cli/init.ts src/cli/index.ts src/cli/main.ts tests/cli/init.test.ts dist/
+git commit -m "feat: integrate Citty and add real nessy init"
 ```
 
 ---
 
 ### Task 17: Real `nessy remove`
 
-Replaces the noop in `src/cli/remove.ts` with real removal + TTY confirmation + `--yes` flag.
+Replaces the noop in `src/cli/remove.ts` with real removal + TTY confirmation + `--yes` flag, exposed via Citty. The pure function's third parameter shape changes from `flags: string[]` (Plan 1) to `opts: { yes?: boolean }` to take advantage of Citty's typed arg inference — `args.yes` in `removeCommand.run()` is `boolean` without manual annotation.
 
 **Files:**
 - Modify: `/Users/noah.zuch/nessy/src/cli/remove.ts`
+- Modify: `/Users/noah.zuch/nessy/src/cli/index.ts` (register `removeCommand` as a subcommand)
 - Modify: `/Users/noah.zuch/nessy/tests/cli/remove.test.ts`
-- Modify: `/Users/noah.zuch/nessy/tests/cli/index.test.ts` (dispatch test for `remove` route)
 
-- [ ] **Step 1: Update tests**
+- [ ] **Step 1: Update `remove.test.ts` to test real behavior with options-object signature**
 
 Replace `/Users/noah.zuch/nessy/tests/cli/remove.test.ts` with:
 
@@ -2956,26 +3014,26 @@ afterEach(() => {
 describe("nessyRemove (real)", () => {
   it("no-ops with exit 0 when .nessy/ doesn't exist", () => {
     const output: string[] = [];
-    const code = nessyRemove((m) => output.push(m), cwd, ["--yes"]);
+    const code = nessyRemove((m) => output.push(m), cwd, { yes: true });
     expect(code).toBe(0);
     expect(output.join("\n")).toContain("Nothing to remove");
   });
 
-  it("removes .nessy/ recursively with --yes", () => {
+  it("removes .nessy/ recursively with { yes: true }", () => {
     mkdirSync(join(cwd, ".nessy"));
     writeFileSync(join(cwd, ".nessy/config.yml"), "version: 1\nrules: []\n");
     mkdirSync(join(cwd, ".nessy/cache"));
     const output: string[] = [];
-    const code = nessyRemove((m) => output.push(m), cwd, ["--yes"]);
+    const code = nessyRemove((m) => output.push(m), cwd, { yes: true });
     expect(code).toBe(0);
     expect(existsSync(join(cwd, ".nessy"))).toBe(false);
   });
 
-  it("refuses non-interactive removal without --yes (non-TTY stdin)", () => {
+  it("refuses non-interactive removal without yes (non-TTY stdin)", () => {
     mkdirSync(join(cwd, ".nessy"));
-    // In vitest, process.stdin is not a TTY, simulating slash-command/script invocation.
+    // In vitest, process.stdin is not a TTY — simulates slash-command/script invocation.
     const output: string[] = [];
-    const code = nessyRemove((m) => output.push(m), cwd, []);
+    const code = nessyRemove((m) => output.push(m), cwd, {});
     expect(code).not.toBe(0);
     expect(existsSync(join(cwd, ".nessy"))).toBe(true);
     expect(output.join("\n")).toMatch(/--yes/);
@@ -2989,29 +3047,31 @@ describe("nessyRemove (real)", () => {
 mise exec -- npm test -- tests/cli/remove.test.ts
 ```
 
-- [ ] **Step 3: Implement**
+- [ ] **Step 3: Implement real `nessyRemove` and its Citty wrapper**
 
 Replace `/Users/noah.zuch/nessy/src/cli/remove.ts` with:
 
 ```ts
-import { existsSync, rmSync } from "node:fs";
+import { defineCommand } from "citty";
+import { existsSync, rmSync, readSync } from "node:fs";
 import { join } from "node:path";
 
-function hasFlag(flags: string[], name: string): boolean {
-  return flags.includes(name);
-}
-
+/**
+ * Pure function — testable in isolation. `print`, `cwd`, and `opts` are
+ * injected; `opts.yes` corresponds to the --yes CLI flag (parsed by Citty
+ * in the wrapper below).
+ */
 export function nessyRemove(
   print: (msg: string) => void,
   cwd: string,
-  flags: string[],
+  opts: { yes?: boolean },
 ): number {
   const nessy = join(cwd, ".nessy");
   if (!existsSync(nessy)) {
     print(`Nothing to remove. (.nessy/ does not exist at ${cwd}.)`);
     return 0;
   }
-  const yes = hasFlag(flags, "--yes");
+  const yes = opts.yes === true;
   const isInteractive = Boolean(process.stdin.isTTY);
   if (!yes && !isInteractive) {
     print(
@@ -3025,12 +3085,16 @@ export function nessyRemove(
     const buf = Buffer.alloc(64);
     let nread = 0;
     try {
-      nread = require("node:fs").readSync(0, buf, 0, buf.length, null);
+      nread = readSync(0, buf, 0, buf.length, null);
     } catch {
       print("Failed to read confirmation; aborting.");
       return 1;
     }
-    const answer = buf.subarray(0, nread).toString("utf8").trim().toLowerCase();
+    const answer = buf
+      .subarray(0, nread)
+      .toString("utf8")
+      .trim()
+      .toLowerCase();
     if (answer !== "y" && answer !== "yes") {
       print("Aborted.");
       return 1;
@@ -3040,61 +3104,60 @@ export function nessyRemove(
   print(`Removed .nessy/ at ${cwd}.`);
   return 0;
 }
-```
 
-Note: the `require("node:fs").readSync(0, ...)` pattern is intentional for a synchronous TTY read inside an exported function. Using `process.stdin` directly returns a Stream in ESM, which would require async refactoring of the function signature — the synchronous approach keeps the test shape simple. If TypeScript's strict mode complains about `require` in ESM, add `// @ts-expect-error CJS require for sync stdin read` directly above the line.
-
-- [ ] **Step 4: Update the dispatch test for `remove`**
-
-Plan 1's `tests/cli/index.test.ts` asserted that `dispatch(["remove", "--yes"], ..., "/tmp/p")` produces a specific noop output. Now `nessyRemove` no-ops with "Nothing to remove" when `.nessy/` doesn't exist. Update the dispatch test to use a real tempdir and assert on the new behavior.
-
-Find this test:
-
-```ts
-it("routes 'remove' to nessyRemove and passes remaining args as flags", () => {
-  const output: string[] = [];
-  const code = dispatch(
-    ["remove", "--yes"],
-    (m) => output.push(m),
-    "/tmp/p",
-  );
-  expect(code).toBe(0);
-  expect(output).toEqual([
-    "[nessy remove — noop] would delete .nessy/ at /tmp/p",
-  ]);
-});
-```
-
-Replace with:
-
-```ts
-it("routes 'remove' to nessyRemove and passes remaining args as flags", () => {
-  const tmp = mkdtempSync(join(tmpdir(), "nessy-dispatch-remove-"));
-  try {
-    // .nessy/ doesn't exist yet — `nessy remove` is a no-op that prints "Nothing to remove" and returns 0.
-    const output: string[] = [];
-    const code = dispatch(
-      ["remove", "--yes"],
-      (m) => output.push(m),
-      tmp,
+export const removeCommand = defineCommand({
+  meta: {
+    name: "remove",
+    description: "Remove the .nessy/ directory from the current working directory",
+  },
+  args: {
+    yes: {
+      type: "boolean",
+      description: "Skip the interactive confirmation prompt",
+    },
+  },
+  run({ args }) {
+    // args.yes is typed as boolean — no annotation needed.
+    const code = nessyRemove(
+      (m) => process.stderr.write(m + "\n"),
+      process.cwd(),
+      { yes: args.yes },
     );
-    expect(code).toBe(0);
-    expect(output.join("\n")).toContain("Nothing to remove");
-  } finally {
-    rmSync(tmp, { recursive: true, force: true });
-  }
+    process.exit(code);
+  },
 });
 ```
 
-(The `mkdtempSync`, `rmSync`, `tmpdir`, `join` imports were already added during Task 16 Step 4.)
+Note: `readSync(0, ...)` from `node:fs` is the synchronous stdin read. Importing it as a named export from `node:fs` (rather than the Plan 1's CJS `require()` workaround) works under NodeNext ESM with no extra annotation.
 
-- [ ] **Step 5: Run, confirm pass**
+- [ ] **Step 4: Register `removeCommand` in the Citty root command**
+
+Edit `/Users/noah.zuch/nessy/src/cli/index.ts` to add the `removeCommand` import and subcommand entry:
+
+```ts
+import { defineCommand } from "citty";
+import { initCommand } from "./init.js";
+import { removeCommand } from "./remove.js";
+
+export const mainCommand = defineCommand({
+  meta: {
+    name: "nessy",
+    description: "Read-before-write enforcement for Claude Code",
+  },
+  subCommands: {
+    init: initCommand,
+    remove: removeCommand,
+  },
+});
+```
+
+- [ ] **Step 5: Run tests**
 
 ```bash
-mise exec -- npm test -- tests/cli/remove.test.ts tests/cli/index.test.ts
+mise exec -- npm test -- tests/cli/remove.test.ts
 ```
 
-Expected: 3 tests pass in `remove.test.ts`, all 5 dispatch tests still pass in `index.test.ts`.
+Expected: 3 tests pass in `remove.test.ts`.
 
 - [ ] **Step 6: Build dist/**
 
@@ -3102,10 +3165,24 @@ Expected: 3 tests pass in `remove.test.ts`, all 5 dispatch tests still pass in `
 mise exec -- npm run build
 ```
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Smoke-test**
 
 ```bash
-git add src/cli/remove.ts tests/cli/remove.test.ts tests/cli/index.test.ts dist/
+mise exec -- node dist/cli/main.js --help
+```
+
+Expected: Citty now lists both `init` and `remove` as subcommands.
+
+```bash
+TEMP=$(mktemp -d) && (cd "$TEMP" && mise exec -- node /Users/noah.zuch/nessy/dist/cli/main.js init && mise exec -- node /Users/noah.zuch/nessy/dist/cli/main.js remove --yes && ls -la .nessy/ 2>&1) && rm -rf "$TEMP"
+```
+
+Expected: `init` creates `.nessy/config.yml`, `remove --yes` deletes it, final `ls -la .nessy/` errors with "No such file or directory" — confirming the round trip.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add src/cli/remove.ts src/cli/index.ts tests/cli/remove.test.ts dist/
 git commit -m "feat: real nessy remove with --yes flag and TTY confirmation"
 ```
 
@@ -3267,7 +3344,7 @@ Expected: `dist/cli/`, `dist/hooks/` populated with all built files.
 mise exec -- npm test
 ```
 
-Expected: all tests pass. Count = Plan 1's 8 + Phase 2's 49 (6 + 4 + 13 + 7 + 8 + 7 + 4) + Phase 3's 27 (5 + 8 + 4 + 3 + 7) + Phase 4's 5 (2 init + 3 remove) = roughly 89 tests. Adjust to whatever the actual run reports.
+Expected: all tests pass. Count = Phase 2's 49 (6 + 4 + 13 + 7 + 8 + 7 + 4) + Phase 3's 27 (5 + 8 + 4 + 3 + 7) + Phase 4's 5 (2 init + 3 remove, replacing Plan 1's noops) = roughly **81 tests**. Plan 1's 5 hand-rolled dispatch tests were deleted in Task 16 (Citty now owns routing), so they don't appear here. Adjust to whatever the actual run reports.
 
 - [ ] **Step 3: Verify `git status` is clean**
 
