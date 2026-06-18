@@ -30,6 +30,8 @@ Real behavior arrives in Plan 2.
 
 ## Development
 
+**Prerequisites:** Node 22 via [mise](https://mise.jdx.dev/). Once mise is installed, run `mise install` from the repo root. If your shell has mise activation hooks loaded, `npm`/`node` work directly; otherwise prefix with `mise exec --`.
+
 ```
 npm install
 npm test
