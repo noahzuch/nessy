@@ -1396,7 +1396,273 @@ Each hook is a TypeScript script that reads a JSON payload from stdin, performs 
 
 ---
 
-### Task 10: `record-read.ts` — PostToolUse(Read)
+### Task 10: Hook payload schemas (`src/lib/payload.ts`)
+
+Defines the Zod schemas every hook uses to parse and type-check its stdin payload. Each Phase 3 hook imports the schema for its event and calls a shared `readAndParsePayload(schema)` helper that returns a typed result or `null` on any failure. This replaces the inline `type Payload = {...}` + `JSON.parse` + manual key-check pattern with one declarative source-of-truth and keeps the "fail-lenient on bad payloads" policy intact (an unparseable or schema-invalid payload silently no-ops, never blocking Claude's tool call).
+
+**Files:**
+- Create: `/Users/noah.zuch/nessy/tests/lib/payload.test.ts`
+- Create: `/Users/noah.zuch/nessy/src/lib/payload.ts`
+
+- [ ] **Step 1: Write failing tests**
+
+Create `/Users/noah.zuch/nessy/tests/lib/payload.test.ts`:
+
+```ts
+import { describe, it, expect } from "vitest";
+import {
+  BasePayloadSchema,
+  ReadHookPayloadSchema,
+  WriteEditHookPayloadSchema,
+  BashHookPayloadSchema,
+  tryParsePayload,
+} from "../../src/lib/payload.js";
+
+describe("BasePayloadSchema", () => {
+  it("accepts the minimum required fields", () => {
+    const r = BasePayloadSchema.safeParse({
+      session_id: "s1",
+      cwd: "/proj",
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("accepts optional agent_id and agent_type", () => {
+    const r = BasePayloadSchema.safeParse({
+      session_id: "s1",
+      cwd: "/proj",
+      agent_id: "a1",
+      agent_type: "Explore",
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects missing session_id", () => {
+    expect(
+      BasePayloadSchema.safeParse({ cwd: "/proj" }).success,
+    ).toBe(false);
+  });
+
+  it("rejects missing cwd", () => {
+    expect(
+      BasePayloadSchema.safeParse({ session_id: "s1" }).success,
+    ).toBe(false);
+  });
+});
+
+describe("ReadHookPayloadSchema", () => {
+  it("accepts a valid Read payload", () => {
+    const r = ReadHookPayloadSchema.safeParse({
+      session_id: "s1",
+      cwd: "/proj",
+      tool_name: "Read",
+      tool_input: { file_path: "/proj/README.md" },
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects non-Read tool_name", () => {
+    expect(
+      ReadHookPayloadSchema.safeParse({
+        session_id: "s1",
+        cwd: "/proj",
+        tool_name: "Write",
+        tool_input: { file_path: "/proj/README.md" },
+      }).success,
+    ).toBe(false);
+  });
+
+  it("rejects missing file_path", () => {
+    expect(
+      ReadHookPayloadSchema.safeParse({
+        session_id: "s1",
+        cwd: "/proj",
+        tool_name: "Read",
+        tool_input: {},
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("WriteEditHookPayloadSchema", () => {
+  it("accepts Write tool_name", () => {
+    const r = WriteEditHookPayloadSchema.safeParse({
+      session_id: "s1",
+      cwd: "/proj",
+      tool_name: "Write",
+      tool_input: { file_path: "/proj/src/foo.ts" },
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("accepts Edit tool_name", () => {
+    const r = WriteEditHookPayloadSchema.safeParse({
+      session_id: "s1",
+      cwd: "/proj",
+      tool_name: "Edit",
+      tool_input: { file_path: "/proj/src/foo.ts" },
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects Bash tool_name", () => {
+    expect(
+      WriteEditHookPayloadSchema.safeParse({
+        session_id: "s1",
+        cwd: "/proj",
+        tool_name: "Bash",
+        tool_input: { command: "ls" },
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("BashHookPayloadSchema", () => {
+  it("accepts a valid Bash payload", () => {
+    const r = BashHookPayloadSchema.safeParse({
+      session_id: "s1",
+      cwd: "/proj",
+      tool_name: "Bash",
+      tool_input: { command: "ls -la" },
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects missing command", () => {
+    expect(
+      BashHookPayloadSchema.safeParse({
+        session_id: "s1",
+        cwd: "/proj",
+        tool_name: "Bash",
+        tool_input: {},
+      }).success,
+    ).toBe(false);
+  });
+});
+
+describe("tryParsePayload", () => {
+  it("returns parsed data on success", () => {
+    const r = tryParsePayload(BasePayloadSchema, {
+      session_id: "s1",
+      cwd: "/proj",
+    });
+    expect(r).toEqual({ session_id: "s1", cwd: "/proj" });
+  });
+
+  it("returns null on schema failure", () => {
+    expect(tryParsePayload(BasePayloadSchema, { foo: "bar" })).toBe(null);
+  });
+
+  it("returns null when input is not an object", () => {
+    expect(tryParsePayload(BasePayloadSchema, "not an object")).toBe(null);
+    expect(tryParsePayload(BasePayloadSchema, null)).toBe(null);
+  });
+});
+```
+
+- [ ] **Step 2: Run, confirm fail**
+
+```bash
+mise exec -- npm test -- tests/lib/payload.test.ts
+```
+
+- [ ] **Step 3: Implement**
+
+Create `/Users/noah.zuch/nessy/src/lib/payload.ts`:
+
+```ts
+import { z } from "zod";
+import { readFileSync } from "node:fs";
+
+/**
+ * Base fields present in every Claude Code hook payload.
+ * `agent_id` and `agent_type` are only present inside subagent firings
+ * (per the Phase 1 Task 2 verification).
+ */
+export const BasePayloadSchema = z.object({
+  session_id: z.string().min(1),
+  agent_id: z.string().optional(),
+  agent_type: z.string().optional(),
+  cwd: z.string().min(1),
+  hook_event_name: z.string().optional(),
+});
+
+export const ReadHookPayloadSchema = BasePayloadSchema.extend({
+  tool_name: z.literal("Read"),
+  tool_input: z.object({
+    file_path: z.string().min(1),
+  }),
+});
+
+export const WriteEditHookPayloadSchema = BasePayloadSchema.extend({
+  tool_name: z.union([z.literal("Write"), z.literal("Edit")]),
+  tool_input: z.object({
+    file_path: z.string().min(1),
+  }),
+});
+
+export const BashHookPayloadSchema = BasePayloadSchema.extend({
+  tool_name: z.literal("Bash"),
+  tool_input: z.object({
+    command: z.string(),
+  }),
+});
+
+// wipe-agent and wipe-session use BasePayloadSchema directly — no extension needed.
+
+export type BasePayload = z.infer<typeof BasePayloadSchema>;
+export type ReadHookPayload = z.infer<typeof ReadHookPayloadSchema>;
+export type WriteEditHookPayload = z.infer<typeof WriteEditHookPayloadSchema>;
+export type BashHookPayload = z.infer<typeof BashHookPayloadSchema>;
+
+/**
+ * Lenient parser — returns null instead of throwing on schema failure.
+ * Every Nessy hook fails open on a malformed payload (so a Claude Code
+ * protocol bug doesn't block the user's tool calls).
+ */
+export function tryParsePayload<T>(
+  schema: z.ZodType<T>,
+  raw: unknown,
+): T | null {
+  const result = schema.safeParse(raw);
+  return result.success ? result.data : null;
+}
+
+/**
+ * Read JSON from stdin (fd 0) and parse it against the given schema.
+ * Returns null on any failure (JSON parse error, schema validation error).
+ */
+export function readAndParsePayload<T>(
+  schema: z.ZodType<T>,
+): T | null {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(readFileSync(0, "utf8"));
+  } catch {
+    return null;
+  }
+  return tryParsePayload(schema, raw);
+}
+```
+
+- [ ] **Step 4: Run, confirm pass**
+
+```bash
+mise exec -- npm test -- tests/lib/payload.test.ts
+```
+
+Expected: 14 tests pass.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/lib/payload.ts tests/lib/payload.test.ts
+git commit -m "feat: add Zod schemas + reader for hook payloads (src/lib/payload.ts)"
+```
+
+---
+
+### Task 11: `record-read.ts` — PostToolUse(Read)
 
 Records reads into the agent's cache; optionally emits a hint when the read path matches a rule with unsatisfied requires.
 
@@ -1640,32 +1906,18 @@ import {
 import { parseConfig } from "../lib/config.js";
 import { matchRules } from "../lib/matching.js";
 import { configure, log, type Level } from "../lib/log.js";
-
-type Payload = {
-  session_id: string;
-  agent_id?: string;
-  agent_type?: string;
-  cwd: string;
-  tool_name?: string;
-  tool_input?: { file_path?: string };
-};
-
-function readPayload(): Payload | null {
-  try {
-    const raw = readFileSync(0, "utf8");
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
+import {
+  ReadHookPayloadSchema,
+  readAndParsePayload,
+} from "../lib/payload.js";
 
 function normalize(p: string): string {
   return p.split("\\").join("/");
 }
 
 function main(): void {
-  const payload = readPayload();
-  if (!payload || typeof payload.session_id !== "string") return;
+  const payload = readAndParsePayload(ReadHookPayloadSchema);
+  if (payload === null) return;
 
   const projectRoot = findProjectRoot(payload.cwd);
   if (projectRoot === null) return;
@@ -1687,10 +1939,8 @@ function main(): void {
   }
   configure({ level, hookName: "record-read", sessionId, agentId });
 
-  const file = payload.tool_input?.file_path;
-  if (!file) return;
-
-  const absTarget = resolve(file);
+  // tool_input.file_path is guaranteed non-empty by ReadHookPayloadSchema.
+  const absTarget = resolve(payload.tool_input.file_path);
   const relTarget = normalize(relative(projectRoot, absTarget));
   if (relTarget.startsWith("..") || relTarget.startsWith(".nessy/")) return;
 
@@ -1778,7 +2028,7 @@ git commit -m "feat: add record-read hook (PostToolUse Read)"
 
 ---
 
-### Task 11: `check-reads.ts` — PreToolUse(Write|Edit)
+### Task 12: `check-reads.ts` — PreToolUse(Write|Edit)
 
 The enforcement hook. Order: self-mod guard → config load → rule match → cache check → block or allow.
 
@@ -2012,22 +2262,10 @@ import { isUnderNessyDir } from "../lib/guards.js";
 import { cachePathFor, loadCache } from "../lib/cache.js";
 import { checkStaleness } from "../lib/staleness.js";
 import { configure, log, type Level } from "../lib/log.js";
-
-type Payload = {
-  session_id: string;
-  agent_id?: string;
-  cwd: string;
-  tool_name?: string;
-  tool_input?: { file_path?: string };
-};
-
-function readPayload(): Payload | null {
-  try {
-    return JSON.parse(readFileSync(0, "utf8"));
-  } catch {
-    return null;
-  }
-}
+import {
+  WriteEditHookPayloadSchema,
+  readAndParsePayload,
+} from "../lib/payload.js";
 
 function block(reason: string): void {
   process.stdout.write(JSON.stringify({ decision: "block", reason }));
@@ -2043,15 +2281,14 @@ const SELF_MOD_MSG =
   "To clear cache, run the matching plugin command (or delete the file yourself if you're the user).";
 
 function main(): void {
-  const payload = readPayload();
-  if (!payload || typeof payload.session_id !== "string") return;
+  const payload = readAndParsePayload(WriteEditHookPayloadSchema);
+  if (payload === null) return;
 
   const projectRoot = findProjectRoot(payload.cwd);
   if (projectRoot === null) return;
 
-  const file = payload.tool_input?.file_path;
-  if (!file) return;
-  const absTarget = resolve(file);
+  // tool_input.file_path is guaranteed non-empty by WriteEditHookPayloadSchema.
+  const absTarget = resolve(payload.tool_input.file_path);
 
   // Configure log with default level until config is loaded; we still want
   // self-mod/config-error logs even before config is parsed.
@@ -2183,7 +2420,7 @@ git commit -m "feat: add check-reads hook (PreToolUse Write|Edit)"
 
 ---
 
-### Task 12: `wipe-agent.ts` — PreCompact + SubagentStop
+### Task 13: `wipe-agent.ts` — PreCompact + SubagentStop
 
 Deletes the current agent's cache file. Same script for both events.
 
@@ -2295,25 +2532,14 @@ import { findProjectRoot } from "../lib/paths.js";
 import { cachePathFor } from "../lib/cache.js";
 import { parseConfig } from "../lib/config.js";
 import { configure, log, type Level } from "../lib/log.js";
-
-type Payload = {
-  session_id: string;
-  agent_id?: string;
-  cwd: string;
-  hook_event_name?: string;
-};
-
-function readPayload(): Payload | null {
-  try {
-    return JSON.parse(readFileSync(0, "utf8"));
-  } catch {
-    return null;
-  }
-}
+import {
+  BasePayloadSchema,
+  readAndParsePayload,
+} from "../lib/payload.js";
 
 function main(): void {
-  const payload = readPayload();
-  if (!payload || typeof payload.session_id !== "string") return;
+  const payload = readAndParsePayload(BasePayloadSchema);
+  if (payload === null) return;
   const projectRoot = findProjectRoot(payload.cwd);
   if (projectRoot === null) return;
 
@@ -2364,7 +2590,7 @@ git commit -m "feat: add wipe-agent hook (PreCompact + SubagentStop)"
 
 ---
 
-### Task 13: `wipe-session.ts` — Stop
+### Task 14: `wipe-session.ts` — Stop
 
 Removes the entire `{session_id}/` cache directory.
 
@@ -2457,20 +2683,14 @@ import { join } from "node:path";
 import { findProjectRoot } from "../lib/paths.js";
 import { parseConfig } from "../lib/config.js";
 import { configure, log, type Level } from "../lib/log.js";
-
-type Payload = { session_id: string; cwd: string; hook_event_name?: string };
-
-function readPayload(): Payload | null {
-  try {
-    return JSON.parse(readFileSync(0, "utf8"));
-  } catch {
-    return null;
-  }
-}
+import {
+  BasePayloadSchema,
+  readAndParsePayload,
+} from "../lib/payload.js";
 
 function main(): void {
-  const payload = readPayload();
-  if (!payload || typeof payload.session_id !== "string") return;
+  const payload = readAndParsePayload(BasePayloadSchema);
+  if (payload === null) return;
   const projectRoot = findProjectRoot(payload.cwd);
   if (projectRoot === null) return;
 
@@ -2521,7 +2741,7 @@ git commit -m "feat: add wipe-session hook (Stop)"
 
 ---
 
-### Task 14: `block-nessy-cli.ts` — PreToolUse(Bash)
+### Task 15: `block-nessy-cli.ts` — PreToolUse(Bash)
 
 Blocks Claude from invoking `nessy init` / `nessy remove` via Bash.
 
@@ -2604,24 +2824,11 @@ mise exec -- npm run build && mise exec -- npm test -- tests/hooks/block-nessy-c
 Create `/Users/noah.zuch/nessy/src/hooks/block-nessy-cli.ts`:
 
 ```ts
-import { readFileSync } from "node:fs";
 import { configure, log } from "../lib/log.js";
-
-type Payload = {
-  session_id: string;
-  agent_id?: string;
-  cwd: string;
-  tool_name?: string;
-  tool_input?: { command?: string };
-};
-
-function readPayload(): Payload | null {
-  try {
-    return JSON.parse(readFileSync(0, "utf8"));
-  } catch {
-    return null;
-  }
-}
+import {
+  BashHookPayloadSchema,
+  readAndParsePayload,
+} from "../lib/payload.js";
 
 const PATTERNS: RegExp[] = [
   /\bnessy\s+(init|remove)\b/,
@@ -2634,16 +2841,16 @@ const BLOCK_MSG =
   "If the user wants this, they should invoke `/nessy:init` or `/nessy:remove` themselves.";
 
 function main(): void {
-  const payload = readPayload();
-  if (!payload) return;
+  const payload = readAndParsePayload(BashHookPayloadSchema);
+  if (payload === null) return;
   configure({
     level: "info",
     hookName: "block-nessy-cli",
-    sessionId: payload.session_id ?? "",
+    sessionId: payload.session_id,
     agentId: payload.agent_id ?? null,
   });
 
-  const cmd = payload.tool_input?.command ?? "";
+  const cmd = payload.tool_input.command;
   let matched = false;
   try {
     matched = PATTERNS.some((re) => re.test(cmd));
@@ -2684,7 +2891,7 @@ Replaces the Plan 1 noop functions with real behavior.
 
 ---
 
-### Task 15: Default config template
+### Task 16: Default config template
 
 **Files:**
 - Create: `/Users/noah.zuch/nessy/templates/default-config.yml`
@@ -2722,7 +2929,7 @@ git commit -m "feat: add default .nessy/config.yml template"
 
 ---
 
-### Task 16: Citty integration + real `nessy init`
+### Task 17: Citty integration + real `nessy init`
 
 Adds the Citty CLI framework, refactors the CLI entry point to use it, and replaces the noop `nessyInit` with real `.nessy/` creation. After this task, the CLI dispatches via Citty (replacing Plan 1's hand-rolled `dispatch`) and `nessy init` actually creates the project's `.nessy/` directory from `templates/default-config.yml`.
 
@@ -2866,7 +3073,7 @@ Replace `/Users/noah.zuch/nessy/src/cli/index.ts` with:
 ```ts
 import { defineCommand } from "citty";
 import { initCommand } from "./init.js";
-// removeCommand is added in Task 17.
+// removeCommand is added in Task 18.
 
 export const mainCommand = defineCommand({
   meta: {
@@ -2875,7 +3082,7 @@ export const mainCommand = defineCommand({
   },
   subCommands: {
     init: initCommand,
-    // remove: <added in Task 17>
+    // remove: <added in Task 18>
   },
 });
 ```
@@ -2903,7 +3110,7 @@ The 5 Plan 1 dispatch tests (routing init/remove, `--help`, no args, unknown sub
 mise exec -- npm test
 ```
 
-Expected: 2 tests pass in `init.test.ts`. The 2 Plan 1 `remove` tests still pass (they remain noop-shaped until Task 17). The 5 deleted `index.test.ts` tests are gone. Net test count at this checkpoint is **(prior total − 5 dispatch tests deleted + 1 net new init test = prior − 4)**. Adjust to whatever the actual run reports.
+Expected: 2 tests pass in `init.test.ts`. The 2 Plan 1 `remove` tests still pass (they remain noop-shaped until Task 18). The 5 deleted `index.test.ts` tests are gone. Net test count at this checkpoint is **(prior total − 5 dispatch tests deleted + 1 net new init test = prior − 4)**. Adjust to whatever the actual run reports.
 
 - [ ] **Step 8: Build dist/**
 
@@ -2938,7 +3145,7 @@ git commit -m "feat: integrate Citty and add real nessy init"
 
 ---
 
-### Task 17: Real `nessy remove`
+### Task 18: Real `nessy remove`
 
 Replaces the noop in `src/cli/remove.ts` with real removal + TTY confirmation + `--yes` flag, exposed via Citty. The pure function's third parameter shape changes from `flags: string[]` (Plan 1) to `opts: { yes?: boolean }` to take advantage of Citty's typed arg inference — `args.yes` in `removeCommand.run()` is `boolean` without manual annotation.
 
@@ -3153,7 +3360,7 @@ git commit -m "feat: real nessy remove with --yes flag and TTY confirmation"
 
 ---
 
-### Task 18: Register all hooks in `hooks/hooks.json`
+### Task 19: Register all hooks in `hooks/hooks.json`
 
 Populates the previously-empty hooks registry with the five hook events.
 
@@ -3249,7 +3456,7 @@ git commit -m "feat: register all five hook events in hooks/hooks.json"
 
 ---
 
-### Task 19: README + CLAUDE.md cleanup
+### Task 20: README + CLAUDE.md cleanup
 
 Addresses the Important issue from Plan 1's final review (README silent about mise) and removes the stale CLAUDE.md.
 
@@ -3286,7 +3493,7 @@ If `CLAUDE.md` was indeed deleted, the commit captures that too. If it wasn't pr
 
 ---
 
-### Task 20: Final rebuild, full test run, and manual verification handoff
+### Task 21: Final rebuild, full test run, and manual verification handoff
 
 Make sure `dist/` is current, every test passes, and Plan 2 is ready for end-to-end manual validation.
 
@@ -3305,7 +3512,7 @@ Expected: `dist/cli/`, `dist/hooks/` populated with all built files.
 mise exec -- npm test
 ```
 
-Expected: all tests pass. Count = Phase 2's 49 (6 + 4 + 13 + 7 + 8 + 7 + 4) + Phase 3's 27 (5 + 8 + 4 + 3 + 7) + Phase 4's 5 (2 init + 3 remove, replacing Plan 1's noops) = roughly **81 tests**. Plan 1's 5 hand-rolled dispatch tests were deleted in Task 16 (Citty now owns routing), so they don't appear here. Adjust to whatever the actual run reports.
+Expected: all tests pass. Count = Phase 2's 63 (6 + 4 + 13 + 7 + 8 + 7 + 4 + 14 payload) + Phase 3's 27 (5 + 8 + 4 + 3 + 7) + Phase 4's 5 (2 init + 3 remove, replacing Plan 1's noops) = roughly **95 tests**. Plan 1's 5 hand-rolled dispatch tests were deleted in Task 17 (Citty now owns routing), so they don't appear here. Adjust to whatever the actual run reports.
 
 - [ ] **Step 3: Verify `git status` is clean**
 
@@ -3354,7 +3561,7 @@ Plan 2 is **complete** when all of the following are true:
 2. All Phase 2–4 tasks are committed; every test in the suite passes via `mise exec -- npm test`.
 3. `hooks/hooks.json` registers all five hook events.
 4. The README documents the mise prerequisite.
-5. End-to-end manual verification (Task 20 Step 5) confirms the standards-drift enforcement works in a real Claude Code session.
+5. End-to-end manual verification (Task 21 Step 5) confirms the standards-drift enforcement works in a real Claude Code session.
 
 ## What's deferred to a future release (v3)
 
@@ -3369,4 +3576,4 @@ Per the spec's §9 Open Questions:
 
 - No new lib modules beyond what's listed above.
 - No restructuring the plugin into `./plugins/nessy/` (the documented canonical pattern). That's a possible v3 cleanup if the marketplace + `"./"` source ever breaks; for now it works.
-- No additional hooks beyond the five registered in Task 18.
+- No additional hooks beyond the five registered in Task 19.
