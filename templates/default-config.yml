@@ -1,0 +1,17 @@
+version: 1
+hints: true
+log_level: info
+rules: []
+
+# Example rules — uncomment and adapt to your project:
+#
+# - name: source
+#   match: ["src/**", "!src/generated/**"]
+#   require:
+#     - docs/standards/coding.md
+#
+# - name: tests
+#   match: "tests/**"
+#   require:
+#     - docs/standards/testing.md
+#     - docs/standards/coding.md
