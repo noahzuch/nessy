@@ -1,4 +1,7 @@
-import ignore from "ignore";
+import { createRequire } from "node:module";
+import type { Ignore } from "ignore";
+const _require = createRequire(import.meta.url);
+const ignore: (options?: { ignorecase?: boolean }) => Ignore = _require("ignore");
 import type { Rule } from "./config.js";
 
 function normalize(path: string): string { return path.split("\\").join("/"); }
