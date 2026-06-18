@@ -1,31 +1,8 @@
-import { nessyInit } from "./init.js";
-import { nessyRemove } from "./remove.js";
-const USAGE = [
-    "Usage: nessy <subcommand>",
-    "",
-    "Subcommands:",
-    "  init      Initialize .nessy/ in the current directory",
-    "  remove    Remove .nessy/ from the current directory",
-    "",
-    "Flags:",
-    "  --help, -h    Show this usage and exit",
-].join("\n");
-export function dispatch(args, print, cwd) {
-    const [sub, ...rest] = args;
-    if (sub === undefined || sub === "--help" || sub === "-h") {
-        print(USAGE);
-        return 0;
-    }
-    switch (sub) {
-        case "init":
-            return nessyInit(print, cwd);
-        case "remove":
-            return nessyRemove(print, cwd, rest);
-        default:
-            print(`Unknown subcommand: ${sub}`);
-            print("");
-            print(USAGE);
-            return 1;
-    }
-}
+import { defineCommand } from "citty";
+import { initCommand } from "./init.js";
+// removeCommand added in Task 18.
+export const mainCommand = defineCommand({
+    meta: { name: "nessy", description: "Read-before-write enforcement for Claude Code" },
+    subCommands: { init: initCommand },
+});
 //# sourceMappingURL=index.js.map
