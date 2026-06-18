@@ -4,7 +4,7 @@
 
 **Goal:** Replace Plan 1's noop CLI with real `nessy init` / `nessy remove`, implement all five hooks (`record-read`, `check-reads`, `wipe-agent`, `wipe-session`, `block-nessy-cli`), and the supporting `src/lib/` modules they depend on. After Plan 2, Nessy enforces the read-before-write standards-drift rule end-to-end per the design spec.
 
-**Architecture:** Pure functions in `src/lib/` (no I/O at module load, no Claude-Code-specific shapes); hook scripts in `src/hooks/` that wire stdin/stdout/exit-code to the lib; CLI subcommands in `src/cli/` consume `templates/default-config.yml` for `init` defaults and are exposed via [Citty](https://github.com/unjs/citty) — a small (~20 KB), TypeScript-native CLI framework whose `defineCommand({ args: {...} })` shape gives us inferred-typed argument access in `run({ args })`. The pattern: each command exports a pure testable function (e.g. `nessyInit(print, cwd)`) plus a thin Citty `defineCommand` wrapper that handles arg parsing, exit codes, and routing. The hand-rolled `dispatch` from Plan 1 is replaced by Citty's root command. All TDD per module/hook.
+**Architecture:** Pure functions in `src/lib/` (no I/O at module load, no Claude-Code-specific shapes); hook scripts in `src/hooks/` that wire stdin/stdout/exit-code to the lib; CLI subcommands in `src/cli/` consume `templates/default-config.yml` for `init` defaults and are exposed via [Citty](https://github.com/unjs/citty) — a small (~20 KB), TypeScript-native CLI framework whose `defineCommand({ args: {...} })` shape gives us inferred-typed argument access in `run({ args })`. The pattern: each command exports a pure testable function (e.g. `nessyInit(print, cwd)`) plus a thin Citty `defineCommand` wrapper that handles arg parsing, exit codes, and routing. The hand-rolled `dispatch` from Plan 1 is replaced by Citty's root command. Config validation uses [Zod](https://github.com/colinhacks/zod) — the schema is the single source of truth for both runtime validation and the TypeScript `Config`/`Rule`/`Level` types (via `z.infer`). All TDD per module/hook.
 
 **Tech Stack:** Same as Plan 1 (TypeScript strict, Node 22 via mise, vitest, NodeNext ESM, npm).
 
@@ -570,11 +570,13 @@ Loads `.nessy/config.yml`, validates the schema, returns a typed `Config` object
 - Create: `/Users/noah.zuch/nessy/tests/lib/config.test.ts`
 - Create: `/Users/noah.zuch/nessy/src/lib/config.ts`
 
-- [ ] **Step 1: Add the `yaml` package**
+- [ ] **Step 1: Add the `yaml` and `zod` packages**
 
 ```bash
-mise exec -- npm install yaml@^2.4.0
+mise exec -- npm install yaml@^2.4.0 zod@^3.23.0
 ```
+
+Zod is the schema validator. The `Config`, `Rule`, and `Level` types are inferred from the Zod schema rather than declared in parallel — single source of truth.
 
 - [ ] **Step 2: Write failing tests**
 
@@ -730,46 +732,53 @@ rules:
 mise exec -- npm test -- tests/lib/config.test.ts
 ```
 
-- [ ] **Step 4: Implement**
+- [ ] **Step 4: Implement using Zod**
 
 Create `/Users/noah.zuch/nessy/src/lib/config.ts`:
 
 ```ts
+import { z } from "zod";
 import { parse } from "yaml";
 
-export type Level = "debug" | "info" | "warn" | "error";
+const LevelSchema = z.enum(["debug", "info", "warn", "error"]);
 
-export type Rule = {
-  name: string;
-  match: string[];
-  require: string[];
-};
+const RuleSchema = z.object({
+  name: z.string().min(1),
+  match: z
+    .union([z.string(), z.array(z.string())])
+    .transform((v) => (typeof v === "string" ? [v] : v)),
+  require: z.array(z.string()).min(1),
+});
 
-export type Config = {
-  version: 1;
-  hints: boolean;
-  log_level: Level;
-  rules: Rule[];
-};
+const ConfigSchema = z.object({
+  version: z.literal(1),
+  hints: z.boolean().default(true),
+  log_level: LevelSchema.default("info"),
+  rules: z.array(RuleSchema).superRefine((rules, ctx) => {
+    const seen = new Set<string>();
+    for (let i = 0; i < rules.length; i++) {
+      const name = rules[i].name;
+      if (seen.has(name)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [i, "name"],
+          message: `duplicate rule name: ${JSON.stringify(name)}`,
+        });
+      }
+      seen.add(name);
+    }
+  }),
+});
+
+export type Level = z.infer<typeof LevelSchema>;
+export type Rule = z.infer<typeof RuleSchema>;
+export type Config = z.infer<typeof ConfigSchema>;
 
 export class ConfigError extends Error {
   constructor(message: string, public filePath?: string) {
     super(filePath ? `${message} (in ${filePath})` : message);
     this.name = "ConfigError";
   }
-}
-
-const VALID_LEVELS: ReadonlySet<string> = new Set([
-  "debug",
-  "info",
-  "warn",
-  "error",
-]);
-
-function asArray(v: unknown, field: string): string[] {
-  if (typeof v === "string") return [v];
-  if (Array.isArray(v) && v.every((x) => typeof x === "string")) return v;
-  throw new ConfigError(`${field} must be a string or array of strings`);
 }
 
 export function parseConfig(yaml: string, filePath?: string): Config {
@@ -782,83 +791,26 @@ export function parseConfig(yaml: string, filePath?: string): Config {
       filePath,
     );
   }
-  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
-    throw new ConfigError("config must be a YAML mapping", filePath);
+  const result = ConfigSchema.safeParse(raw);
+  if (!result.success) {
+    const detail = result.error.issues
+      .map((i) => {
+        const path = i.path.join(".") || "<root>";
+        return `${path}: ${i.message}`;
+      })
+      .join("; ");
+    throw new ConfigError(detail, filePath);
   }
-  const obj = raw as Record<string, unknown>;
-
-  if (obj.version !== 1) {
-    throw new ConfigError(
-      `version must be exactly 1 (got ${JSON.stringify(obj.version)})`,
-      filePath,
-    );
-  }
-
-  const hints = obj.hints === undefined ? true : obj.hints;
-  if (typeof hints !== "boolean") {
-    throw new ConfigError("hints must be a boolean", filePath);
-  }
-
-  const log_level = obj.log_level === undefined ? "info" : obj.log_level;
-  if (typeof log_level !== "string" || !VALID_LEVELS.has(log_level)) {
-    throw new ConfigError(
-      `log_level must be one of debug|info|warn|error (got ${JSON.stringify(log_level)})`,
-      filePath,
-    );
-  }
-
-  if (!Array.isArray(obj.rules)) {
-    throw new ConfigError("rules must be an array", filePath);
-  }
-
-  const names = new Set<string>();
-  const rules: Rule[] = obj.rules.map((entry, idx) => {
-    if (
-      entry === null ||
-      typeof entry !== "object" ||
-      Array.isArray(entry)
-    ) {
-      throw new ConfigError(`rules[${idx}] must be a mapping`, filePath);
-    }
-    const r = entry as Record<string, unknown>;
-    if (typeof r.name !== "string" || r.name.length === 0) {
-      throw new ConfigError(
-        `rules[${idx}].name must be a non-empty string`,
-        filePath,
-      );
-    }
-    if (names.has(r.name)) {
-      throw new ConfigError(
-        `duplicate rule name: ${JSON.stringify(r.name)}`,
-        filePath,
-      );
-    }
-    names.add(r.name);
-    const match = asArray(r.match, `rules[${idx}].match`);
-    if (!Array.isArray(r.require)) {
-      throw new ConfigError(
-        `rules[${idx}].require must be an array`,
-        filePath,
-      );
-    }
-    if (r.require.length === 0) {
-      throw new ConfigError(
-        `rules[${idx}].require must be non-empty`,
-        filePath,
-      );
-    }
-    if (!r.require.every((x: unknown) => typeof x === "string")) {
-      throw new ConfigError(
-        `rules[${idx}].require entries must be strings`,
-        filePath,
-      );
-    }
-    return { name: r.name, match, require: r.require as string[] };
-  });
-
-  return { version: 1, hints, log_level: log_level as Level, rules };
+  return result.data;
 }
 ```
+
+A few notes on the choice of constructs:
+
+- `z.literal(1)` enforces "version is exactly 1." Wrong versions and missing values both fail here, with `version` in the error path — keeping the test regex matchers happy.
+- `z.union([z.string(), z.array(z.string())]).transform(...)` accepts both scalar and array `match`, normalizing to array — same behavior as the old `asArray` helper.
+- `superRefine` runs on the parsed array and uses `ctx.addIssue` to report duplicate names; the `path: [i, "name"]` puts the index + field in the issue path so error messages still mention the duplicated value.
+- `z.infer<typeof ConfigSchema>` derives the `Config` TypeScript type from the schema. No parallel type declaration to drift.
 
 - [ ] **Step 5: Run, confirm pass**
 
@@ -866,13 +818,22 @@ export function parseConfig(yaml: string, filePath?: string): Config {
 mise exec -- npm test -- tests/lib/config.test.ts
 ```
 
-Expected: 13 tests pass.
+Expected: all 13 tests pass. Zod's error messages differ in wording from the hand-rolled version, but the regex matchers in the test file (`/version/`, `/hints/`, `/log_level/`, `/name/`, `/require/`, `/duplicate.*r1/i`) all target field names or substrings that Zod's output preserves via the issue `path`. If any individual matcher fails — for example, if Zod phrases something unexpectedly — loosen the regex rather than re-tightening the schema. Common adjustments:
+
+| Regex | What Zod might emit | Still matches? |
+|---|---|---|
+| `/version/` | `version: Invalid literal value, expected 1` | ✓ |
+| `/hints/` | `hints: Expected boolean, received string` | ✓ |
+| `/log_level/` | `log_level: Invalid enum value. Expected …` | ✓ |
+| `/name/` | `rules.0.name: ...` (or missing) | ✓ |
+| `/require/` | `rules.0.require: Array must contain at least 1 element(s)` | ✓ |
+| `/duplicate.*r1/i` | `rules.1.name: duplicate rule name: "r1"` | ✓ |
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add package.json package-lock.json src/lib/config.ts tests/lib/config.test.ts
-git commit -m "feat: add YAML config loader + schema validation (src/lib/config.ts)"
+git commit -m "feat: add YAML config loader + Zod schema validation"
 ```
 
 ---
