@@ -10,10 +10,7 @@
     "PreCompact": [
       { "hooks": [{ "type": "command", "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/wipe-agent.js" }] }
     ],
-    "SubagentStop": [
-      { "hooks": [{ "type": "command", "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/wipe-agent.js" }] }
-    ],
-    "Stop": [
+    "SessionEnd": [
       { "hooks": [{ "type": "command", "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/wipe-session.js" }] }
     ]
   }
