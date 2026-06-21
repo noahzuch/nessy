@@ -58,15 +58,14 @@ function main() {
                     unread.push(req);
         if (unread.length === 0)
             return;
-        const names = matched.map(r => r.name).join(", ");
         const message = [
-            `Nessy: You just read \`${relTarget}\`, which is covered by rule(s): ${names}.`,
+            `Nessy: You just read \`${relTarget}\`.`,
             `Before you Write or Edit this file (or any other file matching the same rule), read the following:`,
             ...unread.map(p => `  - ${p}`),
             ``,
             `Reading them now means no interrupted writes later.`,
         ].join("\n");
-        process.stdout.write(JSON.stringify({ hookSpecificOutput: { additionalContext: message } }));
+        process.stdout.write(JSON.stringify({ hookSpecificOutput: { additionalContext: message, hookEventName: "PostToolUse" } }));
         log("info", `hint: ${matched.map(r => r.name).join(",")}`);
     }
     catch (e) {

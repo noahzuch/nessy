@@ -19,6 +19,10 @@ export const BashHookPayloadSchema = BasePayloadSchema.extend({
     tool_name: z.literal("Bash"),
     tool_input: z.object({ command: z.string() }),
 });
+export const UserPromptSubmitPayloadSchema = BasePayloadSchema.extend({
+    hook_event_name: z.literal("UserPromptSubmit"),
+    prompt: z.string(),
+});
 export function tryParsePayload(schema, raw) {
     const r = schema.safeParse(raw);
     return r.success ? r.data : null;
