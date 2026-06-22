@@ -8,11 +8,13 @@ import { cachePathFor, loadCache } from "../lib/cache.js";
 import { checkStaleness } from "../lib/staleness.js";
 import { configure, log } from "../lib/log.js";
 import { WriteEditHookPayloadSchema, readAndParsePayload } from "../lib/payload.js";
-const block = (reason) => { process.stdout.write(JSON.stringify({ decision: "block", reason })); };
+const block = (reason) => {
+    process.stdout.write(JSON.stringify({ decision: "block", reason }));
+};
 const normalize = (p) => p.split("\\").join("/");
-const SELF_MOD_MSG = "Nessy: `.nessy/` is plugin-managed state and should not be edited by Claude. "
-    + "Read-only access is fine. To change rules, ask the user to edit `.nessy/config.yml` directly. "
-    + "To clear cache, run the matching plugin command (or delete the file yourself if you're the user).";
+const SELF_MOD_MSG = "Nessy: `.nessy/` is plugin-managed state and should not be edited by Claude. " +
+    "Read-only access is fine. To change rules, ask the user to edit `.nessy/config.yml` directly. " +
+    "To clear cache, run the matching plugin command (or delete the file yourself if you're the user).";
 function main() {
     const payload = readAndParsePayload(WriteEditHookPayloadSchema);
     if (payload === null)
@@ -21,7 +23,12 @@ function main() {
     if (projectRoot === null)
         return;
     const absTarget = resolve(payload.tool_input.file_path);
-    configure({ level: "info", hookName: "check-reads", sessionId: payload.session_id, agentId: payload.agent_id ?? null });
+    configure({
+        level: "info",
+        hookName: "check-reads",
+        sessionId: payload.session_id,
+        agentId: payload.agent_id ?? null,
+    });
     if (isUnderNessyDir(absTarget, projectRoot)) {
         log("info", `block: self-mod ${absTarget}`);
         return block(SELF_MOD_MSG);
@@ -31,11 +38,16 @@ function main() {
         cfg = parseConfig(readFileSync(`${projectRoot}/.nessy/config.yml`, "utf8"), `${projectRoot}/.nessy/config.yml`);
     }
     catch (e) {
-        const detail = e instanceof ConfigError ? e.message : e?.message ?? String(e);
+        const detail = e instanceof ConfigError ? e.message : (e?.message ?? String(e));
         log("error", `block: config-error ${detail}`);
         return block(`Nessy: configuration error in .nessy/config.yml\n\n${detail}\n\nAsk the user to fix the config before continuing. Do not retry the write.`);
     }
-    configure({ level: cfg.log_level, hookName: "check-reads", sessionId: payload.session_id, agentId: payload.agent_id ?? null });
+    configure({
+        level: cfg.log_level,
+        hookName: "check-reads",
+        sessionId: payload.session_id,
+        agentId: payload.agent_id ?? null,
+    });
     const relTarget = normalize(relative(projectRoot, absTarget));
     if (relTarget.startsWith(".."))
         return;
@@ -44,7 +56,7 @@ function main() {
         return;
     const required = unionRequires(matched);
     const cache = loadCache(cachePathFor(projectRoot, payload.session_id, payload.agent_id ?? null));
-    const byPath = new Map(cache.reads.map(r => [r.path, r]));
+    const byPath = new Map(cache.reads.map((r) => [r.path, r]));
     const issues = [];
     for (const req of required) {
         const entry = byPath.get(req);
@@ -60,18 +72,22 @@ function main() {
     }
     if (issues.length === 0)
         return;
-    const configErrs = issues.filter(i => i.status === "config-error");
+    const configErrs = issues.filter((i) => i.status === "config-error");
     if (configErrs.length > 0) {
-        const lines = configErrs.map(c => `  - rule '${matched.find(r => r.require.includes(c.path))?.name}' requires \`${c.path}\`, which does not exist on disk`).join("\n");
+        const lines = configErrs
+            .map((c) => `  - rule '${matched.find((r) => r.require.includes(c.path))?.name}' requires \`${c.path}\`, which does not exist on disk`)
+            .join("\n");
         log("error", `block: config-error (missing files)`);
         return block(`Nessy: configuration error in .nessy/config.yml\n\n${lines}\n\nAsk the user to either create those files or remove them from .nessy/config.yml. Do not retry the write.`);
     }
-    const names = matched.map(r => r.name).join(", ");
-    const lines = issues.map(i => {
-        const tag = i.status === "missing" ? "[not yet read this session]" : "[changed on disk since you last read it]";
+    const names = matched.map((r) => r.name).join(", ");
+    const lines = issues.map((i) => {
+        const tag = i.status === "missing"
+            ? "[not yet read this session]"
+            : "[changed on disk since you last read it]";
         return `  - ${i.path}      ${tag}`;
     });
-    log("info", `block: missing-reads ${issues.map(i => i.path).join(",")}`);
+    log("info", `block: missing-reads ${issues.map((i) => i.path).join(",")}`);
     return block([
         `Nessy: Cannot Write/Edit \`${relTarget}\` yet — required context is not loaded.`,
         ``,

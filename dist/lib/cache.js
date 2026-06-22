@@ -18,10 +18,15 @@ function emptyFor(p) {
     const parts = p.split("/");
     const fn = parts.at(-1) ?? "";
     const sid = parts.at(-2) ?? "";
-    return { version: 1, session_id: sid, agent_id: fn === "__root__.json" ? null : fn.replace(/\.json$/, ""), reads: [] };
+    return {
+        version: 1,
+        session_id: sid,
+        agent_id: fn === "__root__.json" ? null : fn.replace(/\.json$/, ""),
+        reads: [],
+    };
 }
 export function upsertRead(reads, next) {
-    return [...reads.filter(r => r.path !== next.path), next];
+    return [...reads.filter((r) => r.path !== next.path), next];
 }
 export function saveCache(p, c) {
     mkdirSync(dirname(p), { recursive: true });

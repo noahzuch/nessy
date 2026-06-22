@@ -18,7 +18,7 @@ export function nessyInit(print, cwd) {
 export const initCommand = defineCommand({
     meta: { name: "init", description: "Initialize .nessy/ in the current working directory" },
     run() {
-        const code = nessyInit(m => process.stderr.write(m + "\n"), process.cwd());
+        const code = nessyInit((m) => process.stderr.write(m + "\n"), process.cwd());
         process.exit(code);
     },
 });

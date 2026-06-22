@@ -64,7 +64,7 @@ function main() {
             const matched = matchRules(relTarget, cfg.rules);
             if (matched.length === 0)
                 continue;
-            const known = new Set(cache.reads.map(r => r.path));
+            const known = new Set(cache.reads.map((r) => r.path));
             for (const r of matched)
                 for (const req of r.require)
                     if (!known.has(req) && !allUnread.includes(req))
@@ -84,7 +84,7 @@ function main() {
     const message = [
         `Nessy: The @-mentioned file(s) above match rules that require additional context.`,
         `Before you Write or Edit any matched file, read the following:`,
-        ...allUnread.map(p => `  - ${p}`),
+        ...allUnread.map((p) => `  - ${p}`),
         ``,
         `Reading them now means no interrupted writes later.`,
     ].join("\n");

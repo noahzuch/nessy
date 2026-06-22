@@ -3,7 +3,9 @@ import { parse } from "yaml";
 const LevelSchema = z.enum(["debug", "info", "warn", "error"]);
 const RuleSchema = z.object({
     name: z.string().min(1),
-    match: z.union([z.string(), z.array(z.string())]).transform(v => typeof v === "string" ? [v] : v),
+    match: z
+        .union([z.string(), z.array(z.string())])
+        .transform((v) => (typeof v === "string" ? [v] : v)),
     require: z.array(z.string()).min(1),
 });
 const ConfigSchema = z.object({
@@ -14,7 +16,11 @@ const ConfigSchema = z.object({
         const seen = new Set();
         for (let i = 0; i < rules.length; i++) {
             if (seen.has(rules[i].name)) {
-                ctx.addIssue({ code: z.ZodIssueCode.custom, path: [i, "name"], message: `duplicate rule name: ${JSON.stringify(rules[i].name)}` });
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: [i, "name"],
+                    message: `duplicate rule name: ${JSON.stringify(rules[i].name)}`,
+                });
             }
             seen.add(rules[i].name);
         }
@@ -38,7 +44,7 @@ export function parseConfig(yaml, filePath) {
     }
     const r = ConfigSchema.safeParse(raw);
     if (!r.success) {
-        throw new ConfigError(r.error.issues.map(i => `${i.path.join(".") || "<root>"}: ${i.message}`).join("; "), filePath);
+        throw new ConfigError(r.error.issues.map((i) => `${i.path.join(".") || "<root>"}: ${i.message}`).join("; "), filePath);
     }
     return r.data;
 }

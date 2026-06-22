@@ -1,9 +1,9 @@
 import { readFileSync, rmSync } from "node:fs";
-import { join } from "node:path";
 import { findProjectRoot } from "../lib/paths.js";
 import { parseConfig } from "../lib/config.js";
 import { configure, log, type Level } from "../lib/log.js";
 import { BasePayloadSchema, readAndParsePayload } from "../lib/payload.js";
+import { cachePathFor } from "../lib/cache.js";
 
 function main(): void {
   const payload = readAndParsePayload(BasePayloadSchema);
@@ -17,17 +17,17 @@ function main(): void {
   } catch {}
   configure({
     level,
-    hookName: "wipe-session",
+    hookName: "wipe-agent",
     sessionId: payload.session_id,
     agentId: payload.agent_id ?? null,
   });
 
-  const dir = join(projectRoot, ".nessy", "cache", payload.session_id);
+  const file = cachePathFor(projectRoot, payload.session_id, payload.agent_id ?? null);
   try {
-    rmSync(dir, { recursive: true, force: true });
-    log("info", `wiped session dir: ${dir}`);
+    rmSync(file, { force: true });
+    log("info", `wiped agent file: ${file}`);
   } catch (e) {
-    log("warn", `wipe-session failed: ${e instanceof Error ? e.message : String(e)}`);
+    log("warn", `wipe-agent failed: ${e instanceof Error ? e.message : String(e)}`);
   }
 }
 main();

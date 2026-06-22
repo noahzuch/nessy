@@ -50,7 +50,7 @@ function main() {
         const matched = matchRules(relTarget, cfg.rules);
         if (matched.length === 0)
             return;
-        const known = new Set(cache.reads.map(r => r.path));
+        const known = new Set(cache.reads.map((r) => r.path));
         const unread = [];
         for (const r of matched)
             for (const req of r.require)
@@ -61,12 +61,14 @@ function main() {
         const message = [
             `Nessy: You just read \`${relTarget}\`.`,
             `Before you Write or Edit this file (or any other file matching the same rule), read the following:`,
-            ...unread.map(p => `  - ${p}`),
+            ...unread.map((p) => `  - ${p}`),
             ``,
             `Reading them now means no interrupted writes later.`,
         ].join("\n");
-        process.stdout.write(JSON.stringify({ hookSpecificOutput: { additionalContext: message, hookEventName: "PostToolUse" } }));
-        log("info", `hint: ${matched.map(r => r.name).join(",")}`);
+        process.stdout.write(JSON.stringify({
+            hookSpecificOutput: { additionalContext: message, hookEventName: "PostToolUse" },
+        }));
+        log("info", `hint: ${matched.map((r) => r.name).join(",")}`);
     }
     catch (e) {
         log("warn", `hint emission skipped: ${e instanceof Error ? e.message : String(e)}`);

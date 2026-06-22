@@ -34,10 +34,15 @@ export function nessyRemove(print, cwd, opts) {
     return 0;
 }
 export const removeCommand = defineCommand({
-    meta: { name: "remove", description: "Remove the .nessy/ directory from the current working directory" },
+    meta: {
+        name: "remove",
+        description: "Remove the .nessy/ directory from the current working directory",
+    },
     args: { yes: { type: "boolean", description: "Skip the interactive confirmation prompt" } },
     run({ args }) {
-        const code = nessyRemove(m => process.stderr.write(m + "\n"), process.cwd(), { yes: args.yes });
+        const code = nessyRemove((m) => process.stderr.write(m + "\n"), process.cwd(), {
+            yes: args.yes,
+        });
         process.exit(code);
     },
 });
