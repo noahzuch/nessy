@@ -90,9 +90,3 @@ Use `src/lib/foo.js` not `../lib/foo.js` in source files. Use `src/cli/foo.js` a
 **Integration tests** (`tests/hooks/`) use `runHook(hookName, payload, opts)` from `tests/_support/runHook.ts`. This spawns the compiled script at `dist/hooks/<name>.js` as a subprocess — you must `npm run build` first for changes to take effect.
 
 `buildFakeProject()` from `tests/_support/buildFakeProject.ts` creates a temp directory with a minimal `.nessy/config.yml` for hook integration tests.
-
-## Key constraints
-
-- **Do not run `nessy init` or `nessy remove`** — these are user-only commands. The `block-nessy-cli` hook will block them. Use `/nessy:init` and `/nessy:remove` to invoke them.
-- Each hook script must be self-contained (no shared process state). Side effects go to disk only.
-- `src/lib/` modules have no dependency on each other being initialized — every module is pure or uses module-level singletons with explicit `configure()` calls.

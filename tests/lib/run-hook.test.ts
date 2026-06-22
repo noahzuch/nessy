@@ -21,7 +21,12 @@ import { readAndParsePayload } from "src/lib/payload.js";
 import { findProjectRoot } from "src/lib/paths.js";
 import { parseConfig } from "src/lib/config.js";
 
-const basePayload = { session_id: "s1", agent_id: "a1", cwd: "/proj", hook_event_name: "PreToolUse" };
+const basePayload = {
+  session_id: "s1",
+  agent_id: "a1",
+  cwd: "/proj",
+  hook_event_name: "PreToolUse",
+};
 
 beforeEach(() => vi.clearAllMocks());
 
@@ -64,7 +69,9 @@ describe("runHook — requiresProject: true", () => {
   it("calls fn with projectRoot and cfg null when config fails", () => {
     vi.mocked(readAndParsePayload).mockReturnValue(basePayload as any);
     vi.mocked(findProjectRoot).mockReturnValue("/proj");
-    vi.mocked(parseConfig).mockImplementation(() => { throw new Error("bad"); });
+    vi.mocked(parseConfig).mockImplementation(() => {
+      throw new Error("bad");
+    });
     const fn = vi.fn();
     runHook("test", {} as any, { requiresProject: true, requiresConfig: false }, fn);
     expect(fn).toHaveBeenCalledWith(expect.objectContaining({ projectRoot: "/proj", cfg: null }));
@@ -85,7 +92,9 @@ describe("runHook — requiresConfig: true", () => {
   it("emits generic block and does not call fn when config fails", () => {
     vi.mocked(readAndParsePayload).mockReturnValue(basePayload as any);
     vi.mocked(findProjectRoot).mockReturnValue("/proj");
-    vi.mocked(parseConfig).mockImplementation(() => { throw new Error("bad"); });
+    vi.mocked(parseConfig).mockImplementation(() => {
+      throw new Error("bad");
+    });
     const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     const fn = vi.fn();
     runHook("test", {} as any, { requiresProject: true, requiresConfig: true }, fn);

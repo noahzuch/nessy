@@ -52,9 +52,19 @@ export function runHook<T extends BasePayload>(
       cfg = parseConfig(readFileSync(`${projectRoot}/.nessy/config.yml`, "utf8"));
     } catch {}
   }
-  configure({ level: cfg?.log_level ?? "info", hookName: name, sessionId, agentId: agentId ?? null });
+  configure({
+    level: cfg?.log_level ?? "info",
+    hookName: name,
+    sessionId,
+    agentId: agentId ?? null,
+  });
 
-  if (opts.requiresProject === true && "requiresConfig" in opts && opts.requiresConfig === true && cfg === null) {
+  if (
+    opts.requiresProject === true &&
+    "requiresConfig" in opts &&
+    opts.requiresConfig === true &&
+    cfg === null
+  ) {
     process.stdout.write(
       JSON.stringify({
         decision: "block",

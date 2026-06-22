@@ -8,7 +8,6 @@
   },
   "scripts": {
     "build": "tsc && tsc-alias",
-    "postbuild": "node --input-type=commonjs -e \"const{readFileSync,writeFileSync}=require('fs'),f='dist/cli/main.js';writeFileSync(f,'#!/usr/bin/env node\\n'+readFileSync(f,'utf8'))\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit",
