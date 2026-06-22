@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { dirname, join, resolve, parse } from "node:path";
+export const normalize = (p) => p.split("\\").join("/");
 export function findProjectRoot(startDir) {
     let current = resolve(startDir);
     const { root } = parse(current);

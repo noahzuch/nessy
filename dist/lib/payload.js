@@ -32,9 +32,12 @@ export function readAndParsePayload(schema) {
     try {
         raw = JSON.parse(readFileSync(0, "utf8"));
     }
-    catch {
-        return null;
+    catch (e) {
+        throw new Error(`Nessy: failed to read stdin: ${e instanceof Error ? e.message : String(e)}`);
     }
-    return tryParsePayload(schema, raw);
+    const r = schema.safeParse(raw);
+    if (!r.success)
+        throw new Error(`Nessy: invalid payload: ${r.error.message}`);
+    return r.data;
 }
 //# sourceMappingURL=payload.js.map
