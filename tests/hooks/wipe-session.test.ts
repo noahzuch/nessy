@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { buildFakeProject, type FakeProject } from "../_support/buildFakeProject.js";
-import { runHook } from "../_support/runHook.js";
+import { buildFakeProject, type FakeProject } from "tests/_support/buildFakeProject.js";
+import { runHook } from "tests/_support/runHook.js";
 
 function seedCacheFile(projectRoot: string, sessionId: string, filename: string): void {
   const dir = join(projectRoot, ".nessy", "cache", sessionId);

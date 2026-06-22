@@ -1,9 +1,9 @@
 import { readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import { findProjectRoot } from "../lib/paths.js";
-import { parseConfig } from "../lib/config.js";
-import { configure, log, type Level } from "../lib/log.js";
-import { BasePayloadSchema, readAndParsePayload } from "../lib/payload.js";
+import { findProjectRoot } from "src/lib/paths.js";
+import { parseConfig } from "src/lib/config.js";
+import { configure, log, type Level } from "src/lib/log.js";
+import { BasePayloadSchema, readAndParsePayload } from "src/lib/payload.js";
 
 function main(): void {
   const payload = readAndParsePayload(BasePayloadSchema);

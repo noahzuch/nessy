@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { matchRules, unionRequires } from "../../src/lib/matching.js";
-import type { Rule } from "../../src/lib/config.js";
+import { matchRules, unionRequires } from "src/lib/matching.js";
+import type { Rule } from "src/lib/config.js";
 
 describe("matchRules", () => {
   // Test 1: single glob hits — src/** matches src/foo.ts

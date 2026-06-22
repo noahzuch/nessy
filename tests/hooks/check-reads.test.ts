@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { mkdirSync, writeFileSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { buildFakeProject, type FakeProject } from "../_support/buildFakeProject.js";
-import { runHook } from "../_support/runHook.js";
+import { buildFakeProject, type FakeProject } from "tests/_support/buildFakeProject.js";
+import { runHook } from "tests/_support/runHook.js";
 
 // Helper to seed a cache file pre-populated with read entries
 function seedCacheFile(

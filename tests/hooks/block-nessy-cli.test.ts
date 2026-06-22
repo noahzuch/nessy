@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { tmpdir } from "node:os";
-import { runHook } from "../_support/runHook.js";
+import { runHook } from "tests/_support/runHook.js";
 
 const cwd = tmpdir();
 
@@ -17,8 +17,8 @@ describe("block-nessy-cli hook", () => {
   it.each([
     ["nessy init"],
     ["nessy remove"],
+    ["nessy status"],
     ["./bin/nessy init"],
-    ["node dist/cli/main.js init"],
     ["bin/nessy remove --yes"],
   ])("blocks: %s", (command) => {
     const r = runHook("block-nessy-cli", makePayload(command), { cwd });

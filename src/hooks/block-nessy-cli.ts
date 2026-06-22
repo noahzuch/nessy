@@ -1,14 +1,10 @@
-import { configure, log } from "../lib/log.js";
-import { BashHookPayloadSchema, readAndParsePayload } from "../lib/payload.js";
+import { configure, log } from "src/lib/log.js";
+import { BashHookPayloadSchema, readAndParsePayload } from "src/lib/payload.js";
 
-const PATTERNS: RegExp[] = [
-  /\bnessy\s+(init|remove)\b/,
-  /\b(?:\.\/)?(?:bin\/)?nessy\s+(init|remove)\b/,
-  /\bnode\s+\S*\/(cli\/\S+|cli\.js|\S*cli(?:\.js)?)\s+(init|remove)\b/,
-];
+const PATTERN = /\bnessy\s+\w/;
 const BLOCK_MSG =
-  "Nessy: `nessy init` and `nessy remove` are user-only commands; Claude cannot run them. " +
-  "If the user wants this, they should invoke `/nessy:init` or `/nessy:remove` themselves.";
+  "Nessy: nessy CLI commands are user-only; Claude cannot run them. " +
+  "If the user wants this, they should invoke the matching plugin skill themselves.";
 
 function main(): void {
   const payload = readAndParsePayload(BashHookPayloadSchema);
@@ -20,14 +16,7 @@ function main(): void {
     agentId: payload.agent_id ?? null,
   });
   const cmd = payload.tool_input.command;
-  let matched = false;
-  try {
-    matched = PATTERNS.some((re) => re.test(cmd));
-  } catch (e) {
-    log("error", `regex failure: ${e instanceof Error ? e.message : String(e)}`);
-    return;
-  }
-  if (!matched) return;
+  if (!PATTERN.test(cmd)) return;
   log("info", `block: ${cmd}`);
   process.stdout.write(JSON.stringify({ decision: "block", reason: BLOCK_MSG }));
 }

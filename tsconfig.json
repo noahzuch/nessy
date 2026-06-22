@@ -11,7 +11,12 @@
     "declaration": false,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "allowSyntheticDefaultImports": true
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "paths": {
+      "src/*": ["./src/*"],
+      "tests/*": ["./tests/*"]
+    }
   },
   "include": ["src/**/*"]
 }

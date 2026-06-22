@@ -1,13 +1,13 @@
 import { readFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
-import { findProjectRoot } from "../lib/paths.js";
-import { parseConfig, ConfigError } from "../lib/config.js";
-import { matchRules, unionRequires } from "../lib/matching.js";
-import { isUnderNessyDir } from "../lib/guards.js";
-import { cachePathFor, loadCache } from "../lib/cache.js";
-import { checkStaleness } from "../lib/staleness.js";
-import { configure, log, type Level } from "../lib/log.js";
-import { WriteEditHookPayloadSchema, readAndParsePayload } from "../lib/payload.js";
+import { findProjectRoot } from "src/lib/paths.js";
+import { parseConfig, ConfigError } from "src/lib/config.js";
+import { matchRules, unionRequires } from "src/lib/matching.js";
+import { isUnderNessyDir } from "src/lib/guards.js";
+import { cachePathFor, loadCache } from "src/lib/cache.js";
+import { checkStaleness } from "src/lib/staleness.js";
+import { configure, log, type Level } from "src/lib/log.js";
+import { WriteEditHookPayloadSchema, readAndParsePayload } from "src/lib/payload.js";
 
 const block = (reason: string): void => {
   process.stdout.write(JSON.stringify({ decision: "block", reason }));

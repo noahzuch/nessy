@@ -5,7 +5,7 @@ import {
   WriteEditHookPayloadSchema,
   BashHookPayloadSchema,
   tryParsePayload,
-} from "../../src/lib/payload.js";
+} from "src/lib/payload.js";
 
 // --- BasePayloadSchema ---
 

@@ -7,7 +7,7 @@
     "nessy": "dist/cli/main.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && tsc-alias",
     "postbuild": "node --input-type=commonjs -e \"const{readFileSync,writeFileSync}=require('fs'),f='dist/cli/main.js';writeFileSync(f,'#!/usr/bin/env node\\n'+readFileSync(f,'utf8'))\"",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -21,6 +21,7 @@
   "devDependencies": {
     "@types/node": "^20.12.0",
     "prettier": "^3.8.4",
+    "tsc-alias": "^1.8.17",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"
   },

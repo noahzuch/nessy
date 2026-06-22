@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtempSync, writeFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { checkStaleness } from "../../src/lib/staleness.js";
+import { checkStaleness } from "src/lib/staleness.js";
 
 let tmpDir: string;
 

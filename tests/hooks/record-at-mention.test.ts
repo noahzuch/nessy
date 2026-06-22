@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { buildFakeProject, type FakeProject } from "../_support/buildFakeProject.js";
-import { runHook } from "../_support/runHook.js";
+import { buildFakeProject, type FakeProject } from "tests/_support/buildFakeProject.js";
+import { runHook } from "tests/_support/runHook.js";
 
 const basePayload = (projectRoot: string, prompt: string, extra?: object) => ({
   session_id: "sid",

@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { nessyInit } from "../../src/cli/init.js";
+import { nessyInit } from "src/cli/init.js";
 
 let cwd: string | undefined;
 afterEach(() => {

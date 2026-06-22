@@ -1,11 +1,11 @@
 import { readFileSync, statSync } from "node:fs";
 import { relative, resolve } from "node:path";
-import { findProjectRoot } from "../lib/paths.js";
-import { cachePathFor, loadCache, upsertRead, saveCache } from "../lib/cache.js";
-import { parseConfig } from "../lib/config.js";
-import { matchRules } from "../lib/matching.js";
-import { configure, log, type Level } from "../lib/log.js";
-import { UserPromptSubmitPayloadSchema, readAndParsePayload } from "../lib/payload.js";
+import { findProjectRoot } from "src/lib/paths.js";
+import { cachePathFor, loadCache, upsertRead, saveCache } from "src/lib/cache.js";
+import { parseConfig } from "src/lib/config.js";
+import { matchRules } from "src/lib/matching.js";
+import { configure, log, type Level } from "src/lib/log.js";
+import { UserPromptSubmitPayloadSchema, readAndParsePayload } from "src/lib/payload.js";
 
 const normalize = (p: string) => p.split("\\").join("/");
 
