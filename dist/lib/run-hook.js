@@ -17,8 +17,16 @@ export function runHook(name, schema, opts, fn) {
         }
         catch { }
     }
-    configure({ level: cfg?.log_level ?? "info", hookName: name, sessionId, agentId: agentId ?? null });
-    if (opts.requiresProject === true && "requiresConfig" in opts && opts.requiresConfig === true && cfg === null) {
+    configure({
+        level: cfg?.log_level ?? "info",
+        hookName: name,
+        sessionId,
+        agentId: agentId ?? null,
+    });
+    if (opts.requiresProject === true &&
+        "requiresConfig" in opts &&
+        opts.requiresConfig === true &&
+        cfg === null) {
         process.stdout.write(JSON.stringify({
             decision: "block",
             reason: "Nessy: configuration error in .nessy/config.yml — ask the user to fix the config before continuing.",

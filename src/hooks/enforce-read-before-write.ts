@@ -1,33 +1,18 @@
 import { relative, resolve } from "node:path";
 import { WriteEditHookPayloadSchema } from "src/lib/payload.js";
 import { matchRules, unionRequires } from "src/lib/matching.js";
-import { isUnderNessyDir } from "src/lib/guards.js";
 import { cachePathFor, loadCache } from "src/lib/cache.js";
 import { checkStaleness } from "src/lib/staleness.js";
 import { log } from "src/lib/log.js";
 import { normalize } from "src/lib/paths.js";
 import { runHook } from "src/lib/run-hook.js";
 
-const block = (reason: string): void => {
-  process.stdout.write(JSON.stringify({ decision: "block", reason }));
-};
-
-const SELF_MOD_MSG =
-  "Nessy: `.nessy/` is plugin-managed state and should not be edited by Claude. " +
-  "If the user wants to change nessy config, ask the user to edit `.nessy/config.yml` directly.";
-
 runHook(
-  "check-reads",
+  "enforce-read-before-write",
   WriteEditHookPayloadSchema,
   { requiresProject: true, requiresConfig: true },
   ({ payload, projectRoot, cfg }) => {
     const absTarget = resolve(payload.tool_input.file_path);
-
-    if (isUnderNessyDir(absTarget, projectRoot)) {
-      log("info", `block: self-mod ${absTarget}`);
-      return block(SELF_MOD_MSG);
-    }
-
     const relTarget = normalize(relative(projectRoot, absTarget));
     if (relTarget.startsWith("..")) return;
 
@@ -35,9 +20,7 @@ runHook(
     if (matched.length === 0) return;
     const required = unionRequires(matched);
 
-    const cache = loadCache(
-      cachePathFor(projectRoot, payload.session_id, payload.agent_id ?? null),
-    );
+    const cache = loadCache(cachePathFor(projectRoot, payload.session_id, payload.agent_id ?? null));
     const byPath = new Map(cache.reads.map((r) => [r.path, r]));
 
     type Issue = { path: string; status: "missing" | "stale" | "config-error" };
@@ -53,6 +36,9 @@ runHook(
       else if (s === "stale") issues.push({ path: req, status: "stale" });
     }
     if (issues.length === 0) return;
+
+    const block = (reason: string) =>
+      process.stdout.write(JSON.stringify({ decision: "block", reason }));
 
     const configErrs = issues.filter((i) => i.status === "config-error");
     if (configErrs.length > 0) {

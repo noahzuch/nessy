@@ -4,7 +4,6 @@ import { dirname, join } from "node:path";
 import { buildFakeProject, type FakeProject } from "tests/_support/buildFakeProject.js";
 import { runHook } from "tests/_support/runHook.js";
 
-// Helper to seed a cache file pre-populated with read entries
 function seedCacheFile(
   projectRoot: string,
   sid: string,
@@ -24,7 +23,7 @@ function seedCacheFile(
   );
 }
 
-describe("check-reads hook", () => {
+describe("enforce-read-before-write hook", () => {
   let p: FakeProject | undefined;
   afterEach(() => {
     if (p) p.cleanup();
@@ -35,7 +34,7 @@ describe("check-reads hook", () => {
     p = buildFakeProject({ files: { "src/app.ts": "x" } });
     const target = join(p.projectRoot, "src/app.ts");
     const r = runHook(
-      "check-reads",
+      "enforce-read-before-write",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -48,35 +47,14 @@ describe("check-reads hook", () => {
     expect((r.stdoutJson as any)?.decision).not.toBe("block");
   });
 
-  it("target under .nessy/ → block with self-mod message (before config load)", () => {
-    // Config that would otherwise allow — but self-mod check runs before config load
-    p = buildFakeProject({
-      config: "version: 1\nrules: []\n",
-    });
-    const target = join(p.projectRoot, ".nessy/config.yml");
-    const r = runHook(
-      "check-reads",
-      {
-        session_id: "sid",
-        cwd: p.projectRoot,
-        tool_name: "Edit",
-        tool_input: { file_path: target },
-      },
-      { cwd: p.projectRoot },
-    );
-    expect(r.exitCode).toBe(0);
-    expect((r.stdoutJson as any)?.decision).toBe("block");
-    expect((r.stdoutJson as any)?.reason).toContain("plugin-managed state");
-  });
-
-  it("malformed YAML config → block with parse-error", () => {
+  it("malformed YAML config → block with config error", () => {
     p = buildFakeProject({
       config: "version: 1\nrules: [bad yaml: {\n",
       files: { "src/app.ts": "x" },
     });
     const target = join(p.projectRoot, "src/app.ts");
     const r = runHook(
-      "check-reads",
+      "enforce-read-before-write",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -88,7 +66,7 @@ describe("check-reads hook", () => {
     expect(r.exitCode).toBe(0);
     expect((r.stdoutJson as any)?.decision).toBe("block");
     const reason: string = (r.stdoutJson as any)?.reason ?? "";
-    expect(reason.toLowerCase()).toMatch(/configuration error|yaml parse error/);
+    expect(reason.toLowerCase()).toMatch(/configuration error/);
   });
 
   it("no rule matches → allow", () => {
@@ -99,7 +77,7 @@ describe("check-reads hook", () => {
     });
     const target = join(p.projectRoot, "src/app.ts");
     const r = runHook(
-      "check-reads",
+      "enforce-read-before-write",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -122,9 +100,8 @@ describe("check-reads hook", () => {
       },
     });
     const target = join(p.projectRoot, "src/app.ts");
-    // No cache seeded → required file not in cache
     const r = runHook(
-      "check-reads",
+      "enforce-read-before-write",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -156,7 +133,7 @@ describe("check-reads hook", () => {
     ]);
     const target = join(p.projectRoot, "src/app.ts");
     const r = runHook(
-      "check-reads",
+      "enforce-read-before-write",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -178,13 +155,12 @@ describe("check-reads hook", () => {
         "docs/standards/coding.md": "# coding standards",
       },
     });
-    // Seed with stale mtime/size
     seedCacheFile(p.projectRoot, "sid", null, [
       { path: "docs/standards/coding.md", mtime_ms: 1000, size: 999 },
     ]);
     const target = join(p.projectRoot, "src/app.ts");
     const r = runHook(
-      "check-reads",
+      "enforce-read-before-write",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -203,18 +179,14 @@ describe("check-reads hook", () => {
     p = buildFakeProject({
       config:
         "version: 1\nrules:\n  - name: guard-src\n    match: src/**\n    require:\n      - docs/standards/coding.md\n",
-      files: {
-        "src/app.ts": "x",
-        // docs/standards/coding.md intentionally NOT created on disk
-      },
+      files: { "src/app.ts": "x" },
     });
-    // Seed cache as if it was once read (mtime/size don't matter — file is gone)
     seedCacheFile(p.projectRoot, "sid", null, [
       { path: "docs/standards/coding.md", mtime_ms: 1000, size: 42 },
     ]);
     const target = join(p.projectRoot, "src/app.ts");
     const r = runHook(
-      "check-reads",
+      "enforce-read-before-write",
       {
         session_id: "sid",
         cwd: p.projectRoot,

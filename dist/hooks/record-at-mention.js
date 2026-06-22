@@ -38,7 +38,11 @@ runHook("record-at-mention", UserPromptSubmitPayloadSchema, { requiresProject: t
         catch {
             continue;
         }
-        cache.reads = upsertRead(cache.reads, { path: relTarget, mtime_ms: st.mtimeMs, size: st.size });
+        cache.reads = upsertRead(cache.reads, {
+            path: relTarget,
+            mtime_ms: st.mtimeMs,
+            size: st.size,
+        });
         recorded++;
         log("debug", `recorded @mention read: ${relTarget}`);
         try {
