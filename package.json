@@ -1,7 +1,7 @@
 {
   "name": "nessy",
   "version": "0.1.0",
-  "description": "Claude Code plugin: read-before-write enforcement (Plan 1 skeleton)",
+  "description": "Claude Code plugin: AI development workflow enforcement",
   "type": "module",
   "bin": {
     "nessy": "dist/cli/main.js"
