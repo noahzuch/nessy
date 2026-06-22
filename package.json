@@ -3,8 +3,12 @@
   "version": "0.1.0",
   "description": "Claude Code plugin: read-before-write enforcement (Plan 1 skeleton)",
   "type": "module",
+  "bin": {
+    "nessy": "dist/cli/main.js"
+  },
   "scripts": {
     "build": "tsc",
+    "postbuild": "node --input-type=commonjs -e \"const{readFileSync,writeFileSync}=require('fs'),f='dist/cli/main.js';writeFileSync(f,'#!/usr/bin/env node\\n'+readFileSync(f,'utf8'))\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "tsc --noEmit"

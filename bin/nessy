@@ -1,12 +1,6 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-# Find the directory of this script, resolving one level of symlinks.
-SOURCE="${BASH_SOURCE[0]}"
-if [ -L "$SOURCE" ]; then
-  SOURCE="$(readlink "$SOURCE")"
-fi
-SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
-PLUGIN_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-
-exec node "$PLUGIN_ROOT/dist/cli/main.js" "$@"
+# Claude Code's plugin installer does not run `npm link` or `npm install -g`,
+# so the `bin` field in package.json is never wired into PATH. Instead, Claude
+# Code adds the plugin's `bin/` directory to the Bash tool's PATH when the
+# plugin is active. This wrapper is that entry point.
+exec node "${CLAUDE_PLUGIN_ROOT}/dist/cli/main.js" "$@"
