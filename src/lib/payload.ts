@@ -33,10 +33,15 @@ export type BashHookPayload = z.infer<typeof BashHookPayloadSchema>;
 export type UserPromptSubmitPayload = z.infer<typeof UserPromptSubmitPayloadSchema>;
 
 export function tryParsePayload<T>(schema: z.ZodType<T>, raw: unknown): T | null {
-  const r = schema.safeParse(raw); return r.success ? r.data : null;
+  const r = schema.safeParse(raw);
+  return r.success ? r.data : null;
 }
 export function readAndParsePayload<T>(schema: z.ZodType<T>): T | null {
   let raw: unknown;
-  try { raw = JSON.parse(readFileSync(0, "utf8")); } catch { return null; }
+  try {
+    raw = JSON.parse(readFileSync(0, "utf8"));
+  } catch {
+    return null;
+  }
   return tryParsePayload(schema, raw);
 }

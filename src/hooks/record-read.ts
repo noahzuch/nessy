@@ -20,7 +20,9 @@ function main(): void {
 
   // Best-effort log_level peek
   let level: Level = "info";
-  try { level = parseConfig(readFileSync(`${projectRoot}/.nessy/config.yml`, "utf8")).log_level; } catch {}
+  try {
+    level = parseConfig(readFileSync(`${projectRoot}/.nessy/config.yml`, "utf8")).log_level;
+  } catch {}
   configure({ level, hookName: "record-read", sessionId, agentId });
 
   const absTarget = resolve(payload.tool_input.file_path);
@@ -28,7 +30,12 @@ function main(): void {
   if (relTarget.startsWith("..") || relTarget.startsWith(".nessy/")) return;
 
   let st: { mtimeMs: number; size: number };
-  try { st = statSync(absTarget); } catch { log("warn", `stat failed for ${relTarget}`); return; }
+  try {
+    st = statSync(absTarget);
+  } catch {
+    log("warn", `stat failed for ${relTarget}`);
+    return;
+  }
 
   const path = cachePathFor(projectRoot, sessionId, agentId);
   const cache = loadCache(path);
@@ -44,21 +51,25 @@ function main(): void {
     if (!cfg.hints) return;
     const matched = matchRules(relTarget, cfg.rules);
     if (matched.length === 0) return;
-    const known = new Set(cache.reads.map(r => r.path));
+    const known = new Set(cache.reads.map((r) => r.path));
     const unread: string[] = [];
-    for (const r of matched) for (const req of r.require)
-      if (!known.has(req) && !unread.includes(req)) unread.push(req);
+    for (const r of matched)
+      for (const req of r.require) if (!known.has(req) && !unread.includes(req)) unread.push(req);
     if (unread.length === 0) return;
 
     const message = [
       `Nessy: You just read \`${relTarget}\`.`,
       `Before you Write or Edit this file (or any other file matching the same rule), read the following:`,
-      ...unread.map(p => `  - ${p}`),
+      ...unread.map((p) => `  - ${p}`),
       ``,
       `Reading them now means no interrupted writes later.`,
     ].join("\n");
-    process.stdout.write(JSON.stringify({ hookSpecificOutput: { additionalContext: message, hookEventName: "PostToolUse" } }));
-    log("info", `hint: ${matched.map(r => r.name).join(",")}`);
+    process.stdout.write(
+      JSON.stringify({
+        hookSpecificOutput: { additionalContext: message, hookEventName: "PostToolUse" },
+      }),
+    );
+    log("info", `hint: ${matched.map((r) => r.name).join(",")}`);
   } catch (e) {
     log("warn", `hint emission skipped: ${e instanceof Error ? e.message : String(e)}`);
   }

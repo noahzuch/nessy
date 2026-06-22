@@ -4,7 +4,8 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const loadTemplate = () => readFileSync(join(__dirname, "..", "..", "templates", "default-config.yml"), "utf8");
+const loadTemplate = () =>
+  readFileSync(join(__dirname, "..", "..", "templates", "default-config.yml"), "utf8");
 
 export function nessyInit(print: (m: string) => void, cwd: string): number {
   const nessy = join(cwd, ".nessy");
@@ -21,7 +22,7 @@ export function nessyInit(print: (m: string) => void, cwd: string): number {
 export const initCommand = defineCommand({
   meta: { name: "init", description: "Initialize .nessy/ in the current working directory" },
   run() {
-    const code = nessyInit(m => process.stderr.write(m + "\n"), process.cwd());
+    const code = nessyInit((m) => process.stderr.write(m + "\n"), process.cwd());
     process.exit(code);
   },
 });

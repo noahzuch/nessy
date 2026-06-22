@@ -11,13 +11,16 @@
     "postbuild": "node --input-type=commonjs -e \"const{readFileSync,writeFileSync}=require('fs'),f='dist/cli/main.js';writeFileSync(f,'#!/usr/bin/env node\\n'+readFileSync(f,'utf8'))\"",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\""
   },
   "engines": {
     "node": ">=20"
   },
   "devDependencies": {
     "@types/node": "^20.12.0",
+    "prettier": "^3.8.4",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"
   },

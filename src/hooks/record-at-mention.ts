@@ -15,7 +15,10 @@ function extractMentions(prompt: string): string[] {
   const out: string[] = [];
   for (const m of prompt.matchAll(/@([\w./\\-]+)/g)) {
     const p = m[1];
-    if (!seen.has(p)) { seen.add(p); out.push(p); }
+    if (!seen.has(p)) {
+      seen.add(p);
+      out.push(p);
+    }
   }
   return out;
 }
@@ -30,7 +33,9 @@ function main(): void {
   const agentId = payload.agent_id ?? null;
 
   let level: Level = "info";
-  try { level = parseConfig(readFileSync(`${projectRoot}/.nessy/config.yml`, "utf8")).log_level; } catch {}
+  try {
+    level = parseConfig(readFileSync(`${projectRoot}/.nessy/config.yml`, "utf8")).log_level;
+  } catch {}
   configure({ level, hookName: "record-at-mention", sessionId, agentId });
 
   const mentions = extractMentions(payload.prompt);
@@ -48,7 +53,11 @@ function main(): void {
     if (relTarget.startsWith("..") || relTarget.startsWith(".nessy/")) continue;
 
     let st: { mtimeMs: number; size: number };
-    try { st = statSync(absTarget); } catch { continue; }
+    try {
+      st = statSync(absTarget);
+    } catch {
+      continue;
+    }
 
     cache.reads = upsertRead(cache.reads, { path: relTarget, mtime_ms: st.mtimeMs, size: st.size });
     recorded++;
@@ -59,9 +68,10 @@ function main(): void {
       if (!cfg.hints) continue;
       const matched = matchRules(relTarget, cfg.rules);
       if (matched.length === 0) continue;
-      const known = new Set(cache.reads.map(r => r.path));
-      for (const r of matched) for (const req of r.require)
-        if (!known.has(req) && !allUnread.includes(req)) allUnread.push(req);
+      const known = new Set(cache.reads.map((r) => r.path));
+      for (const r of matched)
+        for (const req of r.require)
+          if (!known.has(req) && !allUnread.includes(req)) allUnread.push(req);
     } catch (e) {
       log("warn", `hint collection skipped: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -78,7 +88,7 @@ function main(): void {
   const message = [
     `Nessy: The @-mentioned file(s) above match rules that require additional context.`,
     `Before you Write or Edit any matched file, read the following:`,
-    ...allUnread.map(p => `  - ${p}`),
+    ...allUnread.map((p) => `  - ${p}`),
     ``,
     `Reading them now means no interrupted writes later.`,
   ].join("\n");

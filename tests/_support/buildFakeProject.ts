@@ -3,7 +3,10 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 
 export type FakeProject = { projectRoot: string; cleanup: () => void };
-export function buildFakeProject(opts: { config?: string; files?: Record<string, string> }): FakeProject {
+export function buildFakeProject(opts: {
+  config?: string;
+  files?: Record<string, string>;
+}): FakeProject {
   const projectRoot = mkdtempSync(join(tmpdir(), "nessy-fake-"));
   if (opts.config !== undefined) {
     mkdirSync(join(projectRoot, ".nessy"), { recursive: true });

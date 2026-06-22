@@ -77,8 +77,8 @@ describe("upsertRead", () => {
     const aNew: ReadEntry = { path: "a", mtime_ms: 2, size: 2 };
     const result = upsertRead([a, b], aNew);
     expect(result).toHaveLength(2);
-    expect(result.find(r => r.path === "b")).toEqual(b);
-    expect(result.find(r => r.path === "a")).toEqual(aNew);
+    expect(result.find((r) => r.path === "b")).toEqual(b);
+    expect(result.find((r) => r.path === "a")).toEqual(aNew);
   });
 });
 
@@ -100,7 +100,7 @@ describe("saveCache filesystem", () => {
     // No .tmp.* orphans remain
     const dir = join(tmpDir, "nested", "deep", "sid");
     const files = readdirSync(dir);
-    const orphans = files.filter(f => f.includes(".tmp."));
+    const orphans = files.filter((f) => f.includes(".tmp."));
     expect(orphans).toHaveLength(0);
   });
 });
