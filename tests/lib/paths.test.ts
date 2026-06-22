@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { findProjectRoot } from "src/lib/paths.js";
+import { findProjectRoot, normalize } from "src/lib/paths.js";
 
 let tmpDir: string;
 
@@ -40,5 +40,15 @@ describe("findProjectRoot", () => {
     // Create .nessy dir but no config.yml inside
     mkdirSync(join(tmpDir, ".nessy"));
     expect(findProjectRoot(tmpDir)).toBeNull();
+  });
+});
+
+describe("normalize", () => {
+  it("converts backslashes to forward slashes", () => {
+    expect(normalize("src\\lib\\foo.ts")).toBe("src/lib/foo.ts");
+  });
+
+  it("leaves forward slashes unchanged", () => {
+    expect(normalize("src/lib/foo.ts")).toBe("src/lib/foo.ts");
   });
 });

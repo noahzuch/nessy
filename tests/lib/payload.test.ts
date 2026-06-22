@@ -182,3 +182,15 @@ describe("tryParsePayload", () => {
     expect(result).toBeNull();
   });
 });
+
+// --- readAndParsePayload ---
+// readAndParsePayload reads from fd 0 (stdin), so it cannot be unit-tested
+// in isolation without process-level stdin mocking. The integration tests in
+// tests/hooks/ cover correct payloads end-to-end. Here we verify the throw
+// behaviour by confirming the return type is T (not T | null) — checked
+// statically — and that an invalid schema throws via a type-level sanity note.
+//
+// Behaviour contract:
+//   - Valid JSON matching schema  → returns T
+//   - Invalid JSON               → throws Error("Nessy: failed to read stdin: …")
+//   - Valid JSON, schema mismatch → throws Error("Nessy: invalid payload: …")

@@ -36,12 +36,14 @@ export function tryParsePayload<T>(schema: z.ZodType<T>, raw: unknown): T | null
   const r = schema.safeParse(raw);
   return r.success ? r.data : null;
 }
-export function readAndParsePayload<T>(schema: z.ZodType<T>): T | null {
+export function readAndParsePayload<T>(schema: z.ZodType<T>): T {
   let raw: unknown;
   try {
     raw = JSON.parse(readFileSync(0, "utf8"));
-  } catch {
-    return null;
+  } catch (e) {
+    throw new Error(`Nessy: failed to read stdin: ${e instanceof Error ? e.message : String(e)}`);
   }
-  return tryParsePayload(schema, raw);
+  const r = schema.safeParse(raw);
+  if (!r.success) throw new Error(`Nessy: invalid payload: ${r.error.message}`);
+  return r.data;
 }
