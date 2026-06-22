@@ -1,30 +1,13 @@
-import { readFileSync, statSync } from "node:fs";
+import { statSync } from "node:fs";
 import { relative, resolve } from "node:path";
-import { findProjectRoot } from "src/lib/paths.js";
+import { ReadHookPayloadSchema } from "src/lib/payload.js";
 import { cachePathFor, loadCache, upsertRead, saveCache } from "src/lib/cache.js";
-import { parseConfig } from "src/lib/config.js";
 import { matchRules } from "src/lib/matching.js";
-import { configure, log, type Level } from "src/lib/log.js";
-import { ReadHookPayloadSchema, readAndParsePayload } from "src/lib/payload.js";
+import { log } from "src/lib/log.js";
+import { normalize } from "src/lib/paths.js";
+import { runHook } from "src/lib/run-hook.js";
 
-const normalize = (p: string) => p.split("\\").join("/");
-
-function main(): void {
-  const payload = readAndParsePayload(ReadHookPayloadSchema);
-  if (payload === null) return;
-  const projectRoot = findProjectRoot(payload.cwd);
-  if (projectRoot === null) return;
-
-  const sessionId = payload.session_id;
-  const agentId = payload.agent_id ?? null;
-
-  // Best-effort log_level peek
-  let level: Level = "info";
-  try {
-    level = parseConfig(readFileSync(`${projectRoot}/.nessy/config.yml`, "utf8")).log_level;
-  } catch {}
-  configure({ level, hookName: "record-read", sessionId, agentId });
-
+runHook("record-read", ReadHookPayloadSchema, { requiresProject: true, requiresConfig: false }, ({ payload, projectRoot, cfg }) => {
   const absTarget = resolve(payload.tool_input.file_path);
   const relTarget = normalize(relative(projectRoot, absTarget));
   if (relTarget.startsWith("..") || relTarget.startsWith(".nessy/")) return;
@@ -37,18 +20,16 @@ function main(): void {
     return;
   }
 
-  const path = cachePathFor(projectRoot, sessionId, agentId);
-  const cache = loadCache(path);
+  const cachePath = cachePathFor(projectRoot, payload.session_id, payload.agent_id ?? null);
+  const cache = loadCache(cachePath);
   cache.reads = upsertRead(cache.reads, { path: relTarget, mtime_ms: st.mtimeMs, size: st.size });
-  cache.session_id = sessionId;
-  cache.agent_id = agentId;
-  saveCache(path, cache);
+  cache.session_id = payload.session_id;
+  cache.agent_id = payload.agent_id ?? null;
+  saveCache(cachePath, cache);
   log("debug", `recorded read: ${relTarget}`);
 
-  // Proactive hint (best-effort)
   try {
-    const cfg = parseConfig(readFileSync(`${projectRoot}/.nessy/config.yml`, "utf8"));
-    if (!cfg.hints) return;
+    if (!cfg?.hints) return;
     const matched = matchRules(relTarget, cfg.rules);
     if (matched.length === 0) return;
     const known = new Set(cache.reads.map((r) => r.path));
@@ -56,7 +37,6 @@ function main(): void {
     for (const r of matched)
       for (const req of r.require) if (!known.has(req) && !unread.includes(req)) unread.push(req);
     if (unread.length === 0) return;
-
     const message = [
       `Nessy: You just read \`${relTarget}\`.`,
       `Before you Write or Edit this file (or any other file matching the same rule), read the following:`,
@@ -73,6 +53,4 @@ function main(): void {
   } catch (e) {
     log("warn", `hint emission skipped: ${e instanceof Error ? e.message : String(e)}`);
   }
-}
-
-main();
+});

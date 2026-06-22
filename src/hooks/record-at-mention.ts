@@ -1,15 +1,12 @@
-import { readFileSync, statSync } from "node:fs";
+import { statSync } from "node:fs";
 import { relative, resolve } from "node:path";
-import { findProjectRoot } from "src/lib/paths.js";
+import { UserPromptSubmitPayloadSchema } from "src/lib/payload.js";
 import { cachePathFor, loadCache, upsertRead, saveCache } from "src/lib/cache.js";
-import { parseConfig } from "src/lib/config.js";
 import { matchRules } from "src/lib/matching.js";
-import { configure, log, type Level } from "src/lib/log.js";
-import { UserPromptSubmitPayloadSchema, readAndParsePayload } from "src/lib/payload.js";
+import { log } from "src/lib/log.js";
+import { normalize } from "src/lib/paths.js";
+import { runHook } from "src/lib/run-hook.js";
 
-const normalize = (p: string) => p.split("\\").join("/");
-
-// Matches @path patterns: @src/foo.ts, @./rel.ts, @../up.ts, @plain.ts
 function extractMentions(prompt: string): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
@@ -23,27 +20,12 @@ function extractMentions(prompt: string): string[] {
   return out;
 }
 
-function main(): void {
-  const payload = readAndParsePayload(UserPromptSubmitPayloadSchema);
-  if (payload === null) return;
-  const projectRoot = findProjectRoot(payload.cwd);
-  if (projectRoot === null) return;
-
-  const sessionId = payload.session_id;
-  const agentId = payload.agent_id ?? null;
-
-  let level: Level = "info";
-  try {
-    level = parseConfig(readFileSync(`${projectRoot}/.nessy/config.yml`, "utf8")).log_level;
-  } catch {}
-  configure({ level, hookName: "record-at-mention", sessionId, agentId });
-
+runHook("record-at-mention", UserPromptSubmitPayloadSchema, { requiresProject: true, requiresConfig: false }, ({ payload, projectRoot, cfg }) => {
   const mentions = extractMentions(payload.prompt);
   if (mentions.length === 0) return;
 
-  const cachePath = cachePathFor(projectRoot, sessionId, agentId);
+  const cachePath = cachePathFor(projectRoot, payload.session_id, payload.agent_id ?? null);
   const cache = loadCache(cachePath);
-
   const allUnread: string[] = [];
   let recorded = 0;
 
@@ -64,8 +46,7 @@ function main(): void {
     log("debug", `recorded @mention read: ${relTarget}`);
 
     try {
-      const cfg = parseConfig(readFileSync(`${projectRoot}/.nessy/config.yml`, "utf8"));
-      if (!cfg.hints) continue;
+      if (!cfg?.hints) continue;
       const matched = matchRules(relTarget, cfg.rules);
       if (matched.length === 0) continue;
       const known = new Set(cache.reads.map((r) => r.path));
@@ -78,13 +59,11 @@ function main(): void {
   }
 
   if (recorded === 0) return;
-
-  cache.session_id = sessionId;
-  cache.agent_id = agentId;
+  cache.session_id = payload.session_id;
+  cache.agent_id = payload.agent_id ?? null;
   saveCache(cachePath, cache);
 
   if (allUnread.length === 0) return;
-
   const message = [
     `Nessy: The @-mentioned file(s) above match rules that require additional context.`,
     `Before you Write or Edit any matched file, read the following:`,
@@ -94,6 +73,4 @@ function main(): void {
   ].join("\n");
   process.stdout.write(JSON.stringify({ additionalContext: message }));
   log("info", `hint: ${allUnread.join(",")}`);
-}
-
-main();
+});

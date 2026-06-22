@@ -1,62 +1,29 @@
-import { readFileSync } from "node:fs";
 import { relative, resolve } from "node:path";
-import { findProjectRoot } from "src/lib/paths.js";
-import { parseConfig, ConfigError } from "src/lib/config.js";
+import { WriteEditHookPayloadSchema } from "src/lib/payload.js";
 import { matchRules, unionRequires } from "src/lib/matching.js";
 import { isUnderNessyDir } from "src/lib/guards.js";
 import { cachePathFor, loadCache } from "src/lib/cache.js";
 import { checkStaleness } from "src/lib/staleness.js";
-import { configure, log, type Level } from "src/lib/log.js";
-import { WriteEditHookPayloadSchema, readAndParsePayload } from "src/lib/payload.js";
+import { log } from "src/lib/log.js";
+import { normalize } from "src/lib/paths.js";
+import { runHook } from "src/lib/run-hook.js";
 
 const block = (reason: string): void => {
   process.stdout.write(JSON.stringify({ decision: "block", reason }));
 };
-const normalize = (p: string) => p.split("\\").join("/");
 
 const SELF_MOD_MSG =
   "Nessy: `.nessy/` is plugin-managed state and should not be edited by Claude. " +
   "Read-only access is fine. To change rules, ask the user to edit `.nessy/config.yml` directly. " +
   "To clear cache, run the matching plugin command (or delete the file yourself if you're the user).";
 
-function main(): void {
-  const payload = readAndParsePayload(WriteEditHookPayloadSchema);
-  if (payload === null) return;
-  const projectRoot = findProjectRoot(payload.cwd);
-  if (projectRoot === null) return;
-
+runHook("check-reads", WriteEditHookPayloadSchema, { requiresProject: true, requiresConfig: true }, ({ payload, projectRoot, cfg }) => {
   const absTarget = resolve(payload.tool_input.file_path);
-  configure({
-    level: "info",
-    hookName: "check-reads",
-    sessionId: payload.session_id,
-    agentId: payload.agent_id ?? null,
-  });
 
   if (isUnderNessyDir(absTarget, projectRoot)) {
     log("info", `block: self-mod ${absTarget}`);
     return block(SELF_MOD_MSG);
   }
-
-  let cfg;
-  try {
-    cfg = parseConfig(
-      readFileSync(`${projectRoot}/.nessy/config.yml`, "utf8"),
-      `${projectRoot}/.nessy/config.yml`,
-    );
-  } catch (e) {
-    const detail = e instanceof ConfigError ? e.message : ((e as Error)?.message ?? String(e));
-    log("error", `block: config-error ${detail}`);
-    return block(
-      `Nessy: configuration error in .nessy/config.yml\n\n${detail}\n\nAsk the user to fix the config before continuing. Do not retry the write.`,
-    );
-  }
-  configure({
-    level: cfg.log_level as Level,
-    hookName: "check-reads",
-    sessionId: payload.session_id,
-    agentId: payload.agent_id ?? null,
-  });
 
   const relTarget = normalize(relative(projectRoot, absTarget));
   if (relTarget.startsWith("..")) return;
@@ -119,6 +86,4 @@ function main(): void {
       `have removed their actual content from your context. Re-read them.`,
     ].join("\n"),
   );
-}
-
-main();
+});
