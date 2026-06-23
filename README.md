@@ -98,3 +98,11 @@ npm run lint     # type-check without emitting
 `dist/` is committed so Claude Code can load the plugin without a separate build step on the user's machine.
 
 Path aliases: `src/` and `tests/` are configured as import aliases in both `vitest.config.ts` (runtime) and `tsconfig.json` (editor). Use `tsconfig.test.json` as your IDE's project for test files — it covers both `src/` and `tests/` without `rootDir` restrictions.
+
+### hooks/hooks.json is generated
+
+`hooks/hooks.json` is **not edited by hand**. Each feature under `src/features/` owns a `hooks.fragment.json` that declares its hook registrations. `npm run build` runs `scripts/merge-hooks.mjs` as its final step — this script globs all fragments in alphabetical feature order and merges them into `hooks/hooks.json`.
+
+To add hook registrations for a new feature, create `src/features/<feature-name>/hooks.fragment.json` and run `npm run build`. Direct edits to `hooks/hooks.json` will be overwritten on the next build.
+
+See [docs/adr/0001-hooks-json-generation.md](docs/adr/0001-hooks-json-generation.md) for the full rationale and fragment format.
