@@ -30,263 +30,31 @@
 **Interfaces:**
 - Produces: same exports as `src/lib/config.ts`, `src/lib/log.ts`, `src/lib/paths.ts`, `src/lib/payload.ts`, `src/lib/run-hook.ts` — identical APIs, new paths.
 
-- [ ] **Step 1: Create `src/shared/config.ts`** — identical body to `src/lib/config.ts`, no import changes needed (only external deps).
+- [ ] **Step 1: Create `src/shared/config.ts`**
+
+Copy `src/lib/config.ts` verbatim — no internal imports to update.
+
+- [ ] **Step 2: Create `src/shared/log.ts`**
+
+Copy `src/lib/log.ts` verbatim — no internal imports to update.
+
+- [ ] **Step 3: Create `src/shared/paths.ts`**
+
+Copy `src/lib/paths.ts` verbatim — no internal imports to update.
+
+- [ ] **Step 4: Create `src/shared/payload.ts`**
+
+Copy `src/lib/payload.ts` verbatim — no internal imports to update.
+
+- [ ] **Step 5: Create `src/shared/run-hook.ts`**
+
+Copy `src/lib/run-hook.ts`, updating the four internal imports:
 
 ```typescript
-import { z } from "zod";
-import { parse } from "yaml";
-
-const LevelSchema = z.enum(["debug", "info", "warn", "error"]);
-const RuleSchema = z.object({
-  name: z.string().min(1),
-  match: z
-    .union([z.string(), z.array(z.string())])
-    .transform((v) => (typeof v === "string" ? [v] : v)),
-  require: z.array(z.string()).min(1),
-});
-const ConfigSchema = z.object({
-  version: z.literal(1),
-  hints: z.boolean().default(true),
-  log_level: LevelSchema.default("info"),
-  rules: z.array(RuleSchema).superRefine((rules, ctx) => {
-    const seen = new Set<string>();
-    for (let i = 0; i < rules.length; i++) {
-      if (seen.has(rules[i].name)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          path: [i, "name"],
-          message: `duplicate rule name: ${JSON.stringify(rules[i].name)}`,
-        });
-      }
-      seen.add(rules[i].name);
-    }
-  }),
-});
-export type Level = z.infer<typeof LevelSchema>;
-export type Rule = z.infer<typeof RuleSchema>;
-export type Config = z.infer<typeof ConfigSchema>;
-
-export class ConfigError extends Error {
-  constructor(
-    message: string,
-    public filePath?: string,
-  ) {
-    super(filePath ? `${message} (in ${filePath})` : message);
-    this.name = "ConfigError";
-  }
-}
-
-export function parseConfig(yaml: string, filePath?: string): Config {
-  let raw: unknown;
-  try {
-    raw = parse(yaml);
-  } catch (e) {
-    throw new ConfigError(
-      `YAML parse error: ${e instanceof Error ? e.message : String(e)}`,
-      filePath,
-    );
-  }
-  const r = ConfigSchema.safeParse(raw);
-  if (!r.success) {
-    throw new ConfigError(
-      r.error.issues.map((i) => `${i.path.join(".") || "<root>"}: ${i.message}`).join("; "),
-      filePath,
-    );
-  }
-  return r.data;
-}
-```
-
-- [ ] **Step 2: Create `src/shared/log.ts`** — identical body to `src/lib/log.ts`, no import changes.
-
-```typescript
-export type Level = "debug" | "info" | "warn" | "error";
-const RANK: Record<Level, number> = { debug: 0, info: 1, warn: 2, error: 3 };
-let state = {
-  level: "info" as Level,
-  hookName: "uninitialized",
-  sessionId: "",
-  agentId: null as string | null,
-};
-
-export function configure(opts: {
-  level: Level;
-  hookName: string;
-  sessionId: string;
-  agentId: string | null;
-}): void {
-  state = { ...opts };
-}
-export function log(level: Level, message: string): void {
-  if (RANK[level] < RANK[state.level]) return;
-  process.stderr.write(
-    JSON.stringify({
-      ts: new Date().toISOString(),
-      level,
-      hook: state.hookName,
-      session_id: state.sessionId,
-      agent_id: state.agentId,
-      message,
-    }) + "\n",
-  );
-}
-```
-
-- [ ] **Step 3: Create `src/shared/paths.ts`** — identical body to `src/lib/paths.ts`, no import changes.
-
-```typescript
-import { existsSync } from "node:fs";
-import { dirname, join, resolve, parse } from "node:path";
-
-export const normalize = (p: string): string => p.split("\\").join("/");
-
-export function findProjectRoot(startDir: string): string | null {
-  let current = resolve(startDir);
-  const { root } = parse(current);
-  while (true) {
-    if (existsSync(join(current, ".nessy", "config.yml"))) return current;
-    if (current === root) return null;
-    current = dirname(current);
-  }
-}
-```
-
-- [ ] **Step 4: Create `src/shared/payload.ts`** — identical body to `src/lib/payload.ts`, no import changes.
-
-```typescript
-import { z } from "zod";
-import { readFileSync } from "node:fs";
-
-export const BasePayloadSchema = z.object({
-  session_id: z.string().min(1),
-  agent_id: z.string().optional(),
-  agent_type: z.string().optional(),
-  cwd: z.string().min(1),
-  hook_event_name: z.string().optional(),
-});
-
-export const ReadHookPayloadSchema = BasePayloadSchema.extend({
-  tool_name: z.literal("Read"),
-  tool_input: z.object({ file_path: z.string().min(1) }),
-});
-export const WriteEditHookPayloadSchema = BasePayloadSchema.extend({
-  tool_name: z.union([z.literal("Write"), z.literal("Edit")]),
-  tool_input: z.object({ file_path: z.string().min(1) }),
-});
-export const BashHookPayloadSchema = BasePayloadSchema.extend({
-  tool_name: z.literal("Bash"),
-  tool_input: z.object({ command: z.string() }),
-});
-export const UserPromptSubmitPayloadSchema = BasePayloadSchema.extend({
-  hook_event_name: z.literal("UserPromptSubmit"),
-  prompt: z.string(),
-});
-
-export type BasePayload = z.infer<typeof BasePayloadSchema>;
-export type ReadHookPayload = z.infer<typeof ReadHookPayloadSchema>;
-export type WriteEditHookPayload = z.infer<typeof WriteEditHookPayloadSchema>;
-export type BashHookPayload = z.infer<typeof BashHookPayloadSchema>;
-export type UserPromptSubmitPayload = z.infer<typeof UserPromptSubmitPayloadSchema>;
-
-export function tryParsePayload<T>(schema: z.ZodType<T>, raw: unknown): T | null {
-  const r = schema.safeParse(raw);
-  return r.success ? r.data : null;
-}
-export function readAndParsePayload<T>(schema: z.ZodType<T>): T {
-  let raw: unknown;
-  try {
-    raw = JSON.parse(readFileSync(0, "utf8"));
-  } catch (e) {
-    throw new Error(`Nessy: failed to read stdin: ${e instanceof Error ? e.message : String(e)}`);
-  }
-  const r = schema.safeParse(raw);
-  if (!r.success) throw new Error(`Nessy: invalid payload: ${r.error.message}`);
-  return r.data;
-}
-```
-
-- [ ] **Step 5: Create `src/shared/run-hook.ts`** — same body as `src/lib/run-hook.ts` but imports updated to `src/shared/`.
-
-```typescript
-import { readFileSync } from "node:fs";
-import { z } from "zod";
 import { findProjectRoot } from "src/shared/paths.js";
 import { parseConfig, type Config } from "src/shared/config.js";
 import { configure } from "src/shared/log.js";
 import { readAndParsePayload, type BasePayload } from "src/shared/payload.js";
-
-export type RunHookOpts =
-  | { requiresProject: false }
-  | { requiresProject: true; requiresConfig: false }
-  | { requiresProject: true; requiresConfig: true };
-
-type BaseCtx<T> = { payload: T; sessionId: string; agentId: string | undefined };
-type NoProjectCtx<T> = BaseCtx<T> & { projectRoot: string | null; cfg: Config | null };
-type ProjectCtx<T> = BaseCtx<T> & { projectRoot: string; cfg: Config | null };
-type ConfigCtx<T> = BaseCtx<T> & { projectRoot: string; cfg: Config };
-
-export function runHook<T extends BasePayload>(
-  name: string,
-  schema: z.ZodType<T>,
-  opts: { requiresProject: false },
-  fn: (ctx: NoProjectCtx<T>) => void,
-): void;
-export function runHook<T extends BasePayload>(
-  name: string,
-  schema: z.ZodType<T>,
-  opts: { requiresProject: true; requiresConfig: false },
-  fn: (ctx: ProjectCtx<T>) => void,
-): void;
-export function runHook<T extends BasePayload>(
-  name: string,
-  schema: z.ZodType<T>,
-  opts: { requiresProject: true; requiresConfig: true },
-  fn: (ctx: ConfigCtx<T>) => void,
-): void;
-export function runHook<T extends BasePayload>(
-  name: string,
-  schema: z.ZodType<T>,
-  opts: RunHookOpts,
-  fn: (ctx: any) => void,
-): void {
-  const payload = readAndParsePayload(schema);
-  const sessionId = payload.session_id;
-  const agentId = payload.agent_id;
-
-  let projectRoot: string | null = findProjectRoot(payload.cwd);
-  if (opts.requiresProject === true && projectRoot === null) return;
-
-  let cfg: Config | null = null;
-  if (projectRoot !== null) {
-    try {
-      cfg = parseConfig(readFileSync(`${projectRoot}/.nessy/config.yml`, "utf8"));
-    } catch {}
-  }
-  configure({
-    level: cfg?.log_level ?? "info",
-    hookName: name,
-    sessionId,
-    agentId: agentId ?? null,
-  });
-
-  if (
-    opts.requiresProject === true &&
-    "requiresConfig" in opts &&
-    opts.requiresConfig === true &&
-    cfg === null
-  ) {
-    process.stdout.write(
-      JSON.stringify({
-        decision: "block",
-        reason:
-          "Nessy: configuration error in .nessy/config.yml — ask the user to fix the config before continuing.",
-      }),
-    );
-    return;
-  }
-
-  fn({ payload, sessionId, agentId, projectRoot, cfg });
-}
 ```
 
 - [ ] **Step 6: Verify type-check passes**
@@ -314,97 +82,21 @@ git commit -m "refactor: add src/shared/ with shared infrastructure"
 - Consumes: `src/shared/config.js` (for `Rule` type in matching)
 - Produces: same exports as `src/lib/cache.ts`, `src/lib/matching.ts`, `src/lib/staleness.ts`
 
-- [ ] **Step 1: Create `src/features/read-before-write/lib/cache.ts`** — identical to `src/lib/cache.ts`, no internal imports to update.
+- [ ] **Step 1: Create `src/features/read-before-write/lib/cache.ts`**
+
+Copy `src/lib/cache.ts` verbatim — no internal imports to update.
+
+- [ ] **Step 2: Create `src/features/read-before-write/lib/matching.ts`**
+
+Copy `src/lib/matching.ts`, updating the one internal import (currently relative `./config.js`):
 
 ```typescript
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-
-export type ReadEntry = { path: string; mtime_ms: number; size: number };
-export type CacheFile = {
-  version: 1;
-  session_id: string;
-  agent_id: string | null;
-  agent_type?: string | null;
-  reads: ReadEntry[];
-};
-
-export function cachePathFor(root: string, sid: string, aid: string | null): string {
-  return join(root, ".nessy", "cache", sid, aid === null ? "__root__.json" : `${aid}.json`);
-}
-export function loadCache(p: string): CacheFile {
-  if (!existsSync(p)) return emptyFor(p);
-  try {
-    const o = JSON.parse(readFileSync(p, "utf8"));
-    return Array.isArray(o?.reads) ? o : emptyFor(p);
-  } catch {
-    return emptyFor(p);
-  }
-}
-function emptyFor(p: string): CacheFile {
-  const parts = p.split("/");
-  const fn = parts.at(-1) ?? "";
-  const sid = parts.at(-2) ?? "";
-  return {
-    version: 1,
-    session_id: sid,
-    agent_id: fn === "__root__.json" ? null : fn.replace(/\.json$/, ""),
-    reads: [],
-  };
-}
-export function upsertRead(reads: ReadEntry[], next: ReadEntry): ReadEntry[] {
-  return [...reads.filter((r) => r.path !== next.path), next];
-}
-export function saveCache(p: string, c: CacheFile): void {
-  mkdirSync(dirname(p), { recursive: true });
-  const tmp = `${p}.tmp.${process.pid}.${Date.now()}`;
-  writeFileSync(tmp, JSON.stringify(c, null, 2));
-  renameSync(tmp, p);
-}
-```
-
-- [ ] **Step 2: Create `src/features/read-before-write/lib/matching.ts`** — same body as `src/lib/matching.ts` but the relative `./config.js` import becomes `src/shared/config.js`.
-
-```typescript
-import { createRequire } from "node:module";
-import type { Ignore } from "ignore";
-const _require = createRequire(import.meta.url);
-const ignore: (options?: { ignorecase?: boolean }) => Ignore = _require("ignore");
 import type { Rule } from "src/shared/config.js";
-
-function normalize(path: string): string {
-  return path.split("\\").join("/");
-}
-
-export function matchRules(targetPath: string, rules: Rule[]): Rule[] {
-  const norm = normalize(targetPath);
-  return rules.filter((r) => ignore().add(r.match).ignores(norm));
-}
-export function unionRequires(matched: Rule[]): string[] {
-  const set = new Set<string>();
-  for (const r of matched) for (const req of r.require) set.add(req);
-  return [...set];
-}
 ```
 
-- [ ] **Step 3: Create `src/features/read-before-write/lib/staleness.ts`** — identical to `src/lib/staleness.ts`, no internal imports.
+- [ ] **Step 3: Create `src/features/read-before-write/lib/staleness.ts`**
 
-```typescript
-import { statSync } from "node:fs";
-export type StalenessResult = "fresh" | "stale" | "missing";
-export function checkStaleness(
-  p: string,
-  cachedMtime: number,
-  cachedSize: number,
-): StalenessResult {
-  try {
-    const s = statSync(p);
-    return s.mtimeMs === cachedMtime && s.size === cachedSize ? "fresh" : "stale";
-  } catch {
-    return "missing";
-  }
-}
-```
+Copy `src/lib/staleness.ts` verbatim — no internal imports to update.
 
 - [ ] **Step 4: Verify**
 
@@ -431,172 +123,39 @@ git commit -m "refactor: add src/features/read-before-write/lib/"
 - Create: `src/features/read-before-write/hooks.fragment.json`
 
 **Interfaces:**
-- Consumes: `src/shared/{payload,cache,log,paths,run-hook}.js`, `src/features/read-before-write/lib/{cache,matching,staleness}.js`
+- Consumes: `src/shared/{payload,log,paths,run-hook}.js`, `src/features/read-before-write/lib/{cache,matching,staleness}.js`
 
 - [ ] **Step 1: Create `src/features/read-before-write/hooks/record-at-mention.ts`**
 
-Imports change: `src/lib/payload.js` → `src/shared/payload.js`, `src/lib/cache.js` → `src/features/read-before-write/lib/cache.js`, `src/lib/matching.js` → `src/features/read-before-write/lib/matching.js`, `src/lib/log.js` → `src/shared/log.js`, `src/lib/paths.js` → `src/shared/paths.js`, `src/lib/run-hook.js` → `src/shared/run-hook.js`. Body is identical to `src/hooks/record-at-mention.ts`.
+Copy `src/hooks/record-at-mention.ts`, updating all internal imports:
 
 ```typescript
-import { statSync } from "node:fs";
-import { relative, resolve } from "node:path";
 import { UserPromptSubmitPayloadSchema } from "src/shared/payload.js";
 import { cachePathFor, loadCache, upsertRead, saveCache } from "src/features/read-before-write/lib/cache.js";
 import { matchRules } from "src/features/read-before-write/lib/matching.js";
 import { log } from "src/shared/log.js";
 import { normalize } from "src/shared/paths.js";
 import { runHook } from "src/shared/run-hook.js";
-
-function extractMentions(prompt: string): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const m of prompt.matchAll(/@([\w./\\-]+)/g)) {
-    const p = m[1];
-    if (!seen.has(p)) {
-      seen.add(p);
-      out.push(p);
-    }
-  }
-  return out;
-}
-
-runHook(
-  "record-at-mention",
-  UserPromptSubmitPayloadSchema,
-  { requiresProject: true, requiresConfig: false },
-  ({ payload, projectRoot, cfg }) => {
-    const mentions = extractMentions(payload.prompt);
-    if (mentions.length === 0) return;
-
-    const cachePath = cachePathFor(projectRoot, payload.session_id, payload.agent_id ?? null);
-    const cache = loadCache(cachePath);
-    const allUnread: string[] = [];
-    let recorded = 0;
-
-    for (const mention of mentions) {
-      const absTarget = resolve(payload.cwd, mention);
-      const relTarget = normalize(relative(projectRoot, absTarget));
-      if (relTarget.startsWith("..") || relTarget.startsWith(".nessy/")) continue;
-
-      let st: { mtimeMs: number; size: number };
-      try {
-        st = statSync(absTarget);
-      } catch {
-        continue;
-      }
-
-      cache.reads = upsertRead(cache.reads, {
-        path: relTarget,
-        mtime_ms: st.mtimeMs,
-        size: st.size,
-      });
-      recorded++;
-      log("debug", `recorded @mention read: ${relTarget}`);
-
-      try {
-        if (!cfg?.hints) continue;
-        const matched = matchRules(relTarget, cfg.rules);
-        if (matched.length === 0) continue;
-        const known = new Set(cache.reads.map((r) => r.path));
-        for (const r of matched)
-          for (const req of r.require)
-            if (!known.has(req) && !allUnread.includes(req)) allUnread.push(req);
-      } catch (e) {
-        log("warn", `hint collection skipped: ${e instanceof Error ? e.message : String(e)}`);
-      }
-    }
-
-    if (recorded === 0) return;
-    cache.session_id = payload.session_id;
-    cache.agent_id = payload.agent_id ?? null;
-    saveCache(cachePath, cache);
-
-    if (allUnread.length === 0) return;
-    const message = [
-      `Nessy: The @-mentioned file(s) above match rules that require additional context.`,
-      `Before you Write or Edit any matched file, read the following:`,
-      ...allUnread.map((p) => `  - ${p}`),
-      ``,
-      `Reading them now means no interrupted writes later.`,
-    ].join("\n");
-    process.stdout.write(JSON.stringify({ additionalContext: message }));
-    log("info", `hint: ${allUnread.join(",")}`);
-  },
-);
 ```
 
 - [ ] **Step 2: Create `src/features/read-before-write/hooks/record-read.ts`**
 
-Same import pattern as record-at-mention. Body identical to `src/hooks/record-read.ts`.
+Copy `src/hooks/record-read.ts`, updating all internal imports:
 
 ```typescript
-import { statSync } from "node:fs";
-import { relative, resolve } from "node:path";
 import { ReadHookPayloadSchema } from "src/shared/payload.js";
 import { cachePathFor, loadCache, upsertRead, saveCache } from "src/features/read-before-write/lib/cache.js";
 import { matchRules } from "src/features/read-before-write/lib/matching.js";
 import { log } from "src/shared/log.js";
 import { normalize } from "src/shared/paths.js";
 import { runHook } from "src/shared/run-hook.js";
-
-runHook(
-  "record-read",
-  ReadHookPayloadSchema,
-  { requiresProject: true, requiresConfig: false },
-  ({ payload, projectRoot, cfg }) => {
-    const absTarget = resolve(payload.tool_input.file_path);
-    const relTarget = normalize(relative(projectRoot, absTarget));
-    if (relTarget.startsWith("..") || relTarget.startsWith(".nessy/")) return;
-
-    let st: { mtimeMs: number; size: number };
-    try {
-      st = statSync(absTarget);
-    } catch {
-      log("warn", `stat failed for ${relTarget}`);
-      return;
-    }
-
-    const cachePath = cachePathFor(projectRoot, payload.session_id, payload.agent_id ?? null);
-    const cache = loadCache(cachePath);
-    cache.reads = upsertRead(cache.reads, { path: relTarget, mtime_ms: st.mtimeMs, size: st.size });
-    cache.session_id = payload.session_id;
-    cache.agent_id = payload.agent_id ?? null;
-    saveCache(cachePath, cache);
-    log("debug", `recorded read: ${relTarget}`);
-
-    try {
-      if (!cfg?.hints) return;
-      const matched = matchRules(relTarget, cfg.rules);
-      if (matched.length === 0) return;
-      const known = new Set(cache.reads.map((r) => r.path));
-      const unread: string[] = [];
-      for (const r of matched)
-        for (const req of r.require) if (!known.has(req) && !unread.includes(req)) unread.push(req);
-      if (unread.length === 0) return;
-      const message = [
-        `Nessy: You just read \`${relTarget}\`.`,
-        `Before you Write or Edit this file (or any other file matching the same rule), read the following:`,
-        ...unread.map((p) => `  - ${p}`),
-        ``,
-        `Reading them now means no interrupted writes later.`,
-      ].join("\n");
-      process.stdout.write(
-        JSON.stringify({
-          hookSpecificOutput: { additionalContext: message, hookEventName: "PostToolUse" },
-        }),
-      );
-      log("info", `hint: ${matched.map((r) => r.name).join(",")}`);
-    } catch (e) {
-      log("warn", `hint emission skipped: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  },
-);
 ```
 
 - [ ] **Step 3: Create `src/features/read-before-write/hooks/enforce-read-before-write.ts`**
 
+Copy `src/hooks/enforce-read-before-write.ts`, updating all internal imports:
+
 ```typescript
-import { relative, resolve } from "node:path";
 import { WriteEditHookPayloadSchema } from "src/shared/payload.js";
 import { matchRules, unionRequires } from "src/features/read-before-write/lib/matching.js";
 import { cachePathFor, loadCache } from "src/features/read-before-write/lib/cache.js";
@@ -604,129 +163,27 @@ import { checkStaleness } from "src/features/read-before-write/lib/staleness.js"
 import { log } from "src/shared/log.js";
 import { normalize } from "src/shared/paths.js";
 import { runHook } from "src/shared/run-hook.js";
-
-runHook(
-  "enforce-read-before-write",
-  WriteEditHookPayloadSchema,
-  { requiresProject: true, requiresConfig: true },
-  ({ payload, projectRoot, cfg }) => {
-    const absTarget = resolve(payload.tool_input.file_path);
-    const relTarget = normalize(relative(projectRoot, absTarget));
-    if (relTarget.startsWith("..")) return;
-
-    const matched = matchRules(relTarget, cfg.rules);
-    if (matched.length === 0) return;
-    const required = unionRequires(matched);
-
-    const cache = loadCache(cachePathFor(projectRoot, payload.session_id, payload.agent_id ?? null));
-    const byPath = new Map(cache.reads.map((r) => [r.path, r]));
-
-    type Issue = { path: string; status: "missing" | "stale" | "config-error" };
-    const issues: Issue[] = [];
-    for (const req of required) {
-      const entry = byPath.get(req);
-      if (!entry) {
-        issues.push({ path: req, status: "missing" });
-        continue;
-      }
-      const s = checkStaleness(resolve(projectRoot, req), entry.mtime_ms, entry.size);
-      if (s === "missing") issues.push({ path: req, status: "config-error" });
-      else if (s === "stale") issues.push({ path: req, status: "stale" });
-    }
-    if (issues.length === 0) return;
-
-    const block = (reason: string) =>
-      process.stdout.write(JSON.stringify({ decision: "block", reason }));
-
-    const configErrs = issues.filter((i) => i.status === "config-error");
-    if (configErrs.length > 0) {
-      const lines = configErrs
-        .map(
-          (c) =>
-            `  - rule '${matched.find((r) => r.require.includes(c.path))?.name}' requires \`${c.path}\`, which does not exist on disk`,
-        )
-        .join("\n");
-      log("error", `block: config-error (missing files)`);
-      return block(
-        `Nessy: configuration error in .nessy/config.yml\n\n${lines}\n\nAsk the user to either create those files or remove them from .nessy/config.yml. Do not retry the write.`,
-      );
-    }
-
-    const names = matched.map((r) => r.name).join(", ");
-    const lines = issues.map((i) => {
-      const tag =
-        i.status === "missing"
-          ? "[not yet read this session]"
-          : "[changed on disk since you last read it]";
-      return `  - ${i.path}      ${tag}`;
-    });
-    log("info", `block: missing-reads ${issues.map((i) => i.path).join(",")}`);
-    return block(
-      [
-        `Nessy: Cannot Write/Edit \`${relTarget}\` yet — required context is not loaded.`,
-        ``,
-        `Triggered rule(s): ${names}`,
-        `You must have these files in your current context before writing:`,
-        ...lines,
-        ``,
-        `Use the Read tool on each of the files above, then retry the same Write/Edit.`,
-        ``,
-        `Note: even if a prior summary mentions these files, recent compaction may`,
-        `have removed their actual content from your context. Re-read them.`,
-      ].join("\n"),
-    );
-  },
-);
 ```
 
 - [ ] **Step 4: Create `src/features/read-before-write/hooks/wipe-agent.ts`**
 
+Copy `src/hooks/wipe-agent.ts`, updating all internal imports:
+
 ```typescript
-import { rmSync } from "node:fs";
 import { BasePayloadSchema } from "src/shared/payload.js";
 import { cachePathFor } from "src/features/read-before-write/lib/cache.js";
 import { log } from "src/shared/log.js";
 import { runHook } from "src/shared/run-hook.js";
-
-runHook(
-  "wipe-agent",
-  BasePayloadSchema,
-  { requiresProject: true, requiresConfig: false },
-  ({ payload, projectRoot }) => {
-    const file = cachePathFor(projectRoot, payload.session_id, payload.agent_id ?? null);
-    try {
-      rmSync(file, { force: true });
-      log("info", `wiped agent file: ${file}`);
-    } catch (e) {
-      log("warn", `wipe-agent failed: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  },
-);
 ```
 
 - [ ] **Step 5: Create `src/features/read-before-write/hooks/wipe-session.ts`**
 
+Copy `src/hooks/wipe-session.ts`, updating all internal imports:
+
 ```typescript
-import { rmSync } from "node:fs";
-import { join } from "node:path";
 import { BasePayloadSchema } from "src/shared/payload.js";
 import { log } from "src/shared/log.js";
 import { runHook } from "src/shared/run-hook.js";
-
-runHook(
-  "wipe-session",
-  BasePayloadSchema,
-  { requiresProject: true, requiresConfig: false },
-  ({ payload, projectRoot }) => {
-    const dir = join(projectRoot, ".nessy", "cache", payload.session_id);
-    try {
-      rmSync(dir, { recursive: true, force: true });
-      log("info", `wiped session dir: ${dir}`);
-    } catch (e) {
-      log("warn", `wipe-session failed: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  },
-);
 ```
 
 - [ ] **Step 6: Create `src/features/read-before-write/hooks.fragment.json`**
@@ -778,23 +235,12 @@ git commit -m "refactor: add src/features/read-before-write/ hooks, lib, and fra
 
 - [ ] **Step 1: Create `src/features/block-nessy-cli/hooks/block-nessy-cli.ts`**
 
+Copy `src/hooks/block-nessy-cli.ts`, updating all internal imports:
+
 ```typescript
 import { log } from "src/shared/log.js";
 import { BashHookPayloadSchema } from "src/shared/payload.js";
 import { runHook } from "src/shared/run-hook.js";
-
-const PATTERN = /\bnessy\s+\w/;
-const BLOCK_MSG =
-  "Nessy: nessy CLI commands are user-only; Claude cannot run them. " +
-  "If the user instructed you to call it, tell him that he has to execute nessy commands manually";
-
-runHook("block-nessy-cli", BashHookPayloadSchema, { requiresProject: false }, ({ payload }) => {
-  const cmd = payload.tool_input.command;
-
-  if (!PATTERN.test(cmd)) return;
-  log("info", `block: ${cmd}`);
-  process.stdout.write(JSON.stringify({ decision: "block", reason: BLOCK_MSG }));
-});
 ```
 
 - [ ] **Step 2: Create `src/features/block-nessy-cli/hooks.fragment.json`**
@@ -834,43 +280,19 @@ git commit -m "refactor: add src/features/block-nessy-cli/ hook and fragment"
 - Consumes: `src/shared/{payload,log,run-hook}.js`
 - Produces: `isUnderNessyDir` (used only by the hook in this feature)
 
-- [ ] **Step 1: Create `src/features/block-nessy-dir-writes/lib/guards.ts`** — identical to `src/lib/guards.ts`, no internal imports.
+- [ ] **Step 1: Create `src/features/block-nessy-dir-writes/lib/guards.ts`**
 
-```typescript
-import { relative, resolve } from "node:path";
-export function isUnderNessyDir(target: string, root: string): boolean {
-  const nessy = resolve(root, ".nessy");
-  const t = resolve(target);
-  if (t === nessy) return true;
-  const rel = relative(nessy, t);
-  return rel !== "" && !rel.startsWith("..") && !rel.startsWith("/");
-}
-```
+Copy `src/lib/guards.ts` verbatim — no internal imports to update.
 
 - [ ] **Step 2: Create `src/features/block-nessy-dir-writes/hooks/block-nessy-dir-writes.ts`**
 
+Copy `src/hooks/block-nessy-dir-writes.ts`, updating all internal imports:
+
 ```typescript
-import { resolve } from "node:path";
 import { WriteEditHookPayloadSchema } from "src/shared/payload.js";
 import { isUnderNessyDir } from "src/features/block-nessy-dir-writes/lib/guards.js";
 import { log } from "src/shared/log.js";
 import { runHook } from "src/shared/run-hook.js";
-
-const SELF_MOD_MSG =
-  "Nessy: `.nessy/` is plugin-managed state and should not be edited by Claude. " +
-  "If the user wants to change nessy config, ask the user to edit `.nessy/config.yml` directly.";
-
-runHook(
-  "block-nessy-dir-writes",
-  WriteEditHookPayloadSchema,
-  { requiresProject: true, requiresConfig: false },
-  ({ payload, projectRoot }) => {
-    const absTarget = resolve(payload.tool_input.file_path);
-    if (!isUnderNessyDir(absTarget, projectRoot)) return;
-    log("info", `block: self-mod ${absTarget}`);
-    process.stdout.write(JSON.stringify({ decision: "block", reason: SELF_MOD_MSG }));
-  },
-);
 ```
 
 - [ ] **Step 3: Create `src/features/block-nessy-dir-writes/hooks.fragment.json`**
@@ -912,8 +334,7 @@ git commit -m "refactor: add src/features/block-nessy-dir-writes/ lib, hook, and
 - [ ] **Step 1: Create `scripts/merge-hooks.mjs`**
 
 ```javascript
-// Generated by the build — do not edit hooks/hooks.json directly.
-// Source of truth: src/features/*/hooks.fragment.json
+// Source of truth: src/features/*/hooks.fragment.json — do not edit hooks/hooks.json directly.
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -964,7 +385,7 @@ to:
 - [ ] **Step 3: Run the merge script manually and verify output**
 
 Run: `node scripts/merge-hooks.mjs`
-Expected output: `hooks/hooks.json written (3 features, 5 event types)`
+Expected: `hooks/hooks.json written (3 features, 5 event types)`
 
 Verify the generated `hooks/hooks.json` contains all five event types (`UserPromptSubmit`, `PostToolUse`, `PreToolUse`, `PreCompact`, `SessionEnd`) and references `dist/features/` paths. The `PreToolUse` array must have three entries: one `Bash` matcher and two `Write|Edit` matchers.
 
@@ -981,15 +402,15 @@ git commit -m "build: add merge-hooks script and regenerate hooks.json from frag
 
 **Files:**
 - Modify: `tests/_support/runHook.ts`
-- Create + Delete: all test files under `tests/hooks/` → `tests/features/`
-- Create + Delete: all test files under `tests/lib/` → `tests/features/` or `tests/shared/`
+- Move: all files in `tests/hooks/` → `tests/features/<feature>/`
+- Move: all files in `tests/lib/` → `tests/features/<feature>/` or `tests/shared/`
 
 **Interfaces:**
 - `runHook(scriptPath, payload, opts)` — `scriptPath` is now a path relative to `dist/` without `.js` (e.g. `"features/read-before-write/hooks/record-read"`).
 
 - [ ] **Step 1: Update `tests/_support/runHook.ts`**
 
-The only change is in the `scriptPath` resolution: `join(repo, "dist", "hooks", scriptName + ".js")` becomes `join(repo, "dist", scriptName + ".js")`. The parameter is renamed from `scriptName` to `scriptPath` for clarity.
+Only the `scriptPath` resolution changes. Rename parameter `scriptName` → `scriptPath` and change the resolve line from `join(repo, "dist", "hooks", scriptName + ".js")` to `join(repo, "dist", scriptPath + ".js")`:
 
 ```typescript
 import { spawnSync } from "node:child_process";
@@ -1024,110 +445,74 @@ export function runHook(
 
 - [ ] **Step 2: Move `tests/hooks/record-read.test.ts` → `tests/features/read-before-write/record-read.test.ts`**
 
-Replace every `runHook("record-read",` with `runHook("features/read-before-write/hooks/record-read",`. No other changes.
-
-Verify with grep: `grep "runHook(" tests/features/read-before-write/record-read.test.ts` should show `"features/read-before-write/hooks/record-read"`.
-
-Delete old file: `rm tests/hooks/record-read.test.ts`
+Copy file. Replace every `runHook("record-read",` with `runHook("features/read-before-write/hooks/record-read",`. Delete old file.
 
 - [ ] **Step 3: Move `tests/hooks/record-at-mention.test.ts` → `tests/features/read-before-write/record-at-mention.test.ts`**
 
-Replace every `runHook("record-at-mention",` with `runHook("features/read-before-write/hooks/record-at-mention",`.
-
-Delete old file: `rm tests/hooks/record-at-mention.test.ts`
+Copy file. Replace every `runHook("record-at-mention",` with `runHook("features/read-before-write/hooks/record-at-mention",`. Delete old file.
 
 - [ ] **Step 4: Move `tests/hooks/enforce-read-before-write.test.ts` → `tests/features/read-before-write/enforce-read-before-write.test.ts`**
 
-Replace every `runHook("enforce-read-before-write",` with `runHook("features/read-before-write/hooks/enforce-read-before-write",`.
-
-Delete old file: `rm tests/hooks/enforce-read-before-write.test.ts`
+Copy file. Replace every `runHook("enforce-read-before-write",` with `runHook("features/read-before-write/hooks/enforce-read-before-write",`. Delete old file.
 
 - [ ] **Step 5: Move `tests/hooks/wipe-agent.test.ts` → `tests/features/read-before-write/wipe-agent.test.ts`**
 
-Replace every `runHook("wipe-agent",` with `runHook("features/read-before-write/hooks/wipe-agent",`.
-
-Delete old file: `rm tests/hooks/wipe-agent.test.ts`
+Copy file. Replace every `runHook("wipe-agent",` with `runHook("features/read-before-write/hooks/wipe-agent",`. Delete old file.
 
 - [ ] **Step 6: Move `tests/hooks/wipe-session.test.ts` → `tests/features/read-before-write/wipe-session.test.ts`**
 
-Replace every `runHook("wipe-session",` with `runHook("features/read-before-write/hooks/wipe-session",`.
-
-Delete old file: `rm tests/hooks/wipe-session.test.ts`
+Copy file. Replace every `runHook("wipe-session",` with `runHook("features/read-before-write/hooks/wipe-session",`. Delete old file.
 
 - [ ] **Step 7: Move `tests/hooks/block-nessy-cli.test.ts` → `tests/features/block-nessy-cli/block-nessy-cli.test.ts`**
 
-Replace every `runHook("block-nessy-cli",` with `runHook("features/block-nessy-cli/hooks/block-nessy-cli",`.
-
-Delete old file: `rm tests/hooks/block-nessy-cli.test.ts`
+Copy file. Replace every `runHook("block-nessy-cli",` with `runHook("features/block-nessy-cli/hooks/block-nessy-cli",`. Delete old file.
 
 - [ ] **Step 8: Move `tests/hooks/block-nessy-dir-writes.test.ts` → `tests/features/block-nessy-dir-writes/block-nessy-dir-writes.test.ts`**
 
-Replace every `runHook("block-nessy-dir-writes",` with `runHook("features/block-nessy-dir-writes/hooks/block-nessy-dir-writes",`.
-
-Delete old file: `rm tests/hooks/block-nessy-dir-writes.test.ts`
+Copy file. Replace every `runHook("block-nessy-dir-writes",` with `runHook("features/block-nessy-dir-writes/hooks/block-nessy-dir-writes",`. Delete old file.
 
 - [ ] **Step 9: Move `tests/lib/cache.test.ts` → `tests/features/read-before-write/cache.test.ts`**
 
-Replace: `from "src/lib/cache.js"` → `from "src/features/read-before-write/lib/cache.js"` (both import and type import lines).
-
-Delete old file: `rm tests/lib/cache.test.ts`
+Copy file. Replace `from "src/lib/cache.js"` → `from "src/features/read-before-write/lib/cache.js"` (both import lines). Delete old file.
 
 - [ ] **Step 10: Move `tests/lib/matching.test.ts` → `tests/features/read-before-write/matching.test.ts`**
 
-Replace: `from "src/lib/matching.js"` → `from "src/features/read-before-write/lib/matching.js"`
-Replace: `from "src/lib/config.js"` → `from "src/shared/config.js"` (the `Rule` type import)
-
-Delete old file: `rm tests/lib/matching.test.ts`
+Copy file. Replace `from "src/lib/matching.js"` → `from "src/features/read-before-write/lib/matching.js"` and `from "src/lib/config.js"` → `from "src/shared/config.js"`. Delete old file.
 
 - [ ] **Step 11: Move `tests/lib/staleness.test.ts` → `tests/features/read-before-write/staleness.test.ts`**
 
-Replace: `from "src/lib/staleness.js"` → `from "src/features/read-before-write/lib/staleness.js"`
-
-Delete old file: `rm tests/lib/staleness.test.ts`
+Copy file. Replace `from "src/lib/staleness.js"` → `from "src/features/read-before-write/lib/staleness.js"`. Delete old file.
 
 - [ ] **Step 12: Move `tests/lib/guards.test.ts` → `tests/features/block-nessy-dir-writes/guards.test.ts`**
 
-Replace: `from "src/lib/guards.js"` → `from "src/features/block-nessy-dir-writes/lib/guards.js"`
-
-Delete old file: `rm tests/lib/guards.test.ts`
+Copy file. Replace `from "src/lib/guards.js"` → `from "src/features/block-nessy-dir-writes/lib/guards.js"`. Delete old file.
 
 - [ ] **Step 13: Move `tests/lib/config.test.ts` → `tests/shared/config.test.ts`**
 
-Replace: `from "src/lib/config.js"` → `from "src/shared/config.js"`
-
-Delete old file: `rm tests/lib/config.test.ts`
+Copy file. Replace `from "src/lib/config.js"` → `from "src/shared/config.js"`. Delete old file.
 
 - [ ] **Step 14: Move `tests/lib/log.test.ts` → `tests/shared/log.test.ts`**
 
-Replace: `from "src/lib/log.js"` → `from "src/shared/log.js"`
-
-Delete old file: `rm tests/lib/log.test.ts`
+Copy file. Replace `from "src/lib/log.js"` → `from "src/shared/log.js"`. Delete old file.
 
 - [ ] **Step 15: Move `tests/lib/paths.test.ts` → `tests/shared/paths.test.ts`**
 
-Replace: `from "src/lib/paths.js"` → `from "src/shared/paths.js"`
-
-Delete old file: `rm tests/lib/paths.test.ts`
+Copy file. Replace `from "src/lib/paths.js"` → `from "src/shared/paths.js"`. Delete old file.
 
 - [ ] **Step 16: Move `tests/lib/payload.test.ts` → `tests/shared/payload.test.ts`**
 
-Replace: `from "src/lib/payload.js"` → `from "src/shared/payload.js"`
-
-Delete old file: `rm tests/lib/payload.test.ts`
+Copy file. Replace `from "src/lib/payload.js"` → `from "src/shared/payload.js"`. Delete old file.
 
 - [ ] **Step 17: Move `tests/lib/run-hook.test.ts` → `tests/shared/run-hook.test.ts`**
 
-Four `vi.mock(...)` calls and four `import ... from` lines all need `src/lib/` → `src/shared/`:
-- `vi.mock("src/lib/payload.js", ...)` → `vi.mock("src/shared/payload.js", ...)`
-- `vi.mock("src/lib/paths.js", ...)` → `vi.mock("src/shared/paths.js", ...)`
-- `vi.mock("src/lib/config.js", ...)` → `vi.mock("src/shared/config.js", ...)`
-- `vi.mock("src/lib/log.js", ...)` → `vi.mock("src/shared/log.js", ...)`
-- `import { runHook } from "src/lib/run-hook.js"` → `import { runHook } from "src/shared/run-hook.js"`
-- `import { readAndParsePayload } from "src/lib/payload.js"` → `import { readAndParsePayload } from "src/shared/payload.js"`
-- `import { findProjectRoot } from "src/lib/paths.js"` → `import { findProjectRoot } from "src/shared/paths.js"`
-- `import { parseConfig } from "src/lib/config.js"` → `import { parseConfig } from "src/shared/config.js"`
+Copy file. Replace all eight `src/lib/` references with `src/shared/` — four `vi.mock(...)` calls and four `import ... from` lines:
+- `"src/lib/payload.js"` → `"src/shared/payload.js"`
+- `"src/lib/paths.js"` → `"src/shared/paths.js"`
+- `"src/lib/config.js"` → `"src/shared/config.js"`
+- `"src/lib/log.js"` → `"src/shared/log.js"`
+- `"src/lib/run-hook.js"` → `"src/shared/run-hook.js"`
 
-Delete old file: `rm tests/lib/run-hook.test.ts`
+Delete old file.
 
 - [ ] **Step 18: Verify type-check passes**
 
@@ -1159,12 +544,12 @@ rm -rf src/lib src/hooks
 - [ ] **Step 2: Verify lint still passes**
 
 Run: `npm run lint`
-Expected: exits 0. (If there are errors, a file in `src/cli/` or `src/shared/` still imports from `src/lib/`.)
+Expected: exits 0. (If there are errors, a file still imports from `src/lib/`.)
 
 - [ ] **Step 3: Rebuild `dist/`**
 
 Run: `npm run build`
-Expected: `tsc` compiles without errors, `tsc-alias` rewrites paths, `merge-hooks.mjs` reports `hooks/hooks.json written (3 features, 5 event types)`.
+Expected: tsc compiles without errors, tsc-alias rewrites paths, merge-hooks.mjs reports `hooks/hooks.json written (3 features, 5 event types)`.
 
 - [ ] **Step 4: Run full test suite**
 
@@ -1229,7 +614,7 @@ Features are merged in alphabetical directory name order. This is deterministic 
 
 ## Consequences
 - Adding or removing a feature is a local change inside `src/features/<feature>/`.
-- `hooks/hooks.json` diffs will show the merged output; reviewers should check the relevant fragment, not the generated file.
+- `hooks/hooks.json` diffs show the merged output; reviewers should check the relevant fragment, not the generated file.
 ```
 
 - [ ] **Step 2: Commit**
