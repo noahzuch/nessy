@@ -1,6 +1,6 @@
 # Nessy — Claude Code Guide
 
-Nessy is a Claude Code plugin that enforces development workflows through hooks. The first feature is read-before-write enforcement: Claude must have read required context files before writing to matched paths. More features follow the same hook-based pattern.
+Nessy is a Claude Code plugin that implements a development workflow harness.
 
 ## Commands
 

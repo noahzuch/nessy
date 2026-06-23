@@ -1,6 +1,6 @@
 # Nessy
 
-A Claude Code plugin that enforces a specific development workflow through hooks. Nessy runs automatically in the background during your AI coding sessions — no manual steps required once installed.
+Nessy is a Claude Code plugin that implements a development workflow harness.
 
 ## Features
 

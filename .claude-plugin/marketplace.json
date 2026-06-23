@@ -7,7 +7,7 @@
     {
       "name": "nessy",
       "source": "./",
-      "description": "Read-before-write enforcement for Claude Code"
+      "description": "Nessy, a development workflow harness"
     }
   ]
 }
