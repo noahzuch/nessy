@@ -21,7 +21,7 @@ describe("record-at-mention hook", () => {
 
   it("no config → no-op (no cache file created)", () => {
     p = buildFakeProject({ files: { "src/foo.ts": "x" } });
-    const r = runHook("record-at-mention", basePayload(p.projectRoot, `look at @src/foo.ts`), {
+    const r = runHook("features/read-before-write/hooks/record-at-mention", basePayload(p.projectRoot, `look at @src/foo.ts`), {
       cwd: p.projectRoot,
     });
     expect(r.exitCode).toBe(0);
@@ -30,7 +30,7 @@ describe("record-at-mention hook", () => {
 
   it("prompt with no @ patterns → no-op", () => {
     p = buildFakeProject({ config: `version: 1\nrules: []\n`, files: { "src/foo.ts": "x" } });
-    const r = runHook("record-at-mention", basePayload(p.projectRoot, `just a plain message`), {
+    const r = runHook("features/read-before-write/hooks/record-at-mention", basePayload(p.projectRoot, `just a plain message`), {
       cwd: p.projectRoot,
     });
     expect(r.exitCode).toBe(0);
@@ -41,7 +41,7 @@ describe("record-at-mention hook", () => {
     p = buildFakeProject({ config: `version: 1\nrules: []\n`, files: { "src/foo.ts": "x" } });
     const target = join(p.projectRoot, "src/foo.ts");
     const stat = statSync(target);
-    const r = runHook("record-at-mention", basePayload(p.projectRoot, `edit @src/foo.ts for me`), {
+    const r = runHook("features/read-before-write/hooks/record-at-mention", basePayload(p.projectRoot, `edit @src/foo.ts for me`), {
       cwd: p.projectRoot,
     });
     expect(r.exitCode).toBe(0);
@@ -59,7 +59,7 @@ describe("record-at-mention hook", () => {
   it("agent_id present → cache file at {aid}.json", () => {
     p = buildFakeProject({ config: `version: 1\nrules: []\n`, files: { "src/bar.ts": "y" } });
     const r = runHook(
-      "record-at-mention",
+      "features/read-before-write/hooks/record-at-mention",
       basePayload(p.projectRoot, `@src/bar.ts`, { agent_id: "agent-7" }),
       { cwd: p.projectRoot },
     );
@@ -74,7 +74,7 @@ describe("record-at-mention hook", () => {
   it("@ mention of a .nessy/ file → skipped", () => {
     p = buildFakeProject({ config: `version: 1\nrules: []\n` });
     const r = runHook(
-      "record-at-mention",
+      "features/read-before-write/hooks/record-at-mention",
       basePayload(p.projectRoot, `look at @.nessy/config.yml`),
       { cwd: p.projectRoot },
     );
@@ -84,7 +84,7 @@ describe("record-at-mention hook", () => {
 
   it("@ mention of non-existent file → skipped without error", () => {
     p = buildFakeProject({ config: `version: 1\nrules: []\n` });
-    const r = runHook("record-at-mention", basePayload(p.projectRoot, `check @src/ghost.ts`), {
+    const r = runHook("features/read-before-write/hooks/record-at-mention", basePayload(p.projectRoot, `check @src/ghost.ts`), {
       cwd: p.projectRoot,
     });
     expect(r.exitCode).toBe(0);
@@ -94,7 +94,7 @@ describe("record-at-mention hook", () => {
   it("duplicate @ mention → single cache entry", () => {
     p = buildFakeProject({ config: `version: 1\nrules: []\n`, files: { "src/foo.ts": "x" } });
     const r = runHook(
-      "record-at-mention",
+      "features/read-before-write/hooks/record-at-mention",
       basePayload(p.projectRoot, `@src/foo.ts and @src/foo.ts again`),
       { cwd: p.projectRoot },
     );
@@ -110,7 +110,7 @@ describe("record-at-mention hook", () => {
       config: `version: 1\nhints: true\nrules:\n  - name: docs\n    match: ["docs/**"]\n    require:\n      - README.md\n`,
       files: { "src/foo.ts": "x", "README.md": "r" },
     });
-    const r = runHook("record-at-mention", basePayload(p.projectRoot, `@src/foo.ts`), {
+    const r = runHook("features/read-before-write/hooks/record-at-mention", basePayload(p.projectRoot, `@src/foo.ts`), {
       cwd: p.projectRoot,
     });
     expect(r.exitCode).toBe(0);
@@ -122,7 +122,7 @@ describe("record-at-mention hook", () => {
       config: `version: 1\nhints: true\nrules:\n  - name: source\n    match: ["src/**"]\n    require:\n      - docs/arch.md\n`,
       files: { "src/foo.ts": "x", "docs/arch.md": "arch" },
     });
-    const r = runHook("record-at-mention", basePayload(p.projectRoot, `edit @src/foo.ts`), {
+    const r = runHook("features/read-before-write/hooks/record-at-mention", basePayload(p.projectRoot, `edit @src/foo.ts`), {
       cwd: p.projectRoot,
     });
     expect(r.exitCode).toBe(0);
@@ -136,7 +136,7 @@ describe("record-at-mention hook", () => {
       config: `version: 1\nhints: false\nrules:\n  - name: source\n    match: ["src/**"]\n    require:\n      - docs/arch.md\n`,
       files: { "src/foo.ts": "x", "docs/arch.md": "arch" },
     });
-    const r = runHook("record-at-mention", basePayload(p.projectRoot, `@src/foo.ts`), {
+    const r = runHook("features/read-before-write/hooks/record-at-mention", basePayload(p.projectRoot, `@src/foo.ts`), {
       cwd: p.projectRoot,
     });
     expect(r.exitCode).toBe(0);
@@ -149,11 +149,11 @@ describe("record-at-mention hook", () => {
       files: { "src/foo.ts": "x", "docs/arch.md": "arch" },
     });
     // Pre-record the required file as already read
-    runHook("record-at-mention", basePayload(p.projectRoot, `@docs/arch.md`), {
+    runHook("features/read-before-write/hooks/record-at-mention", basePayload(p.projectRoot, `@docs/arch.md`), {
       cwd: p.projectRoot,
     });
     // Now mention the source file — required file is already known
-    const r = runHook("record-at-mention", basePayload(p.projectRoot, `@src/foo.ts`), {
+    const r = runHook("features/read-before-write/hooks/record-at-mention", basePayload(p.projectRoot, `@src/foo.ts`), {
       cwd: p.projectRoot,
     });
     expect(r.exitCode).toBe(0);

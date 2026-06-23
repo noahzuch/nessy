@@ -1,25 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("src/lib/payload.js", () => ({
+vi.mock("src/shared/payload.js", () => ({
   readAndParsePayload: vi.fn(),
 }));
-vi.mock("src/lib/paths.js", () => ({
+vi.mock("src/shared/paths.js", () => ({
   findProjectRoot: vi.fn(),
   normalize: (p: string) => p,
 }));
-vi.mock("src/lib/config.js", () => ({
+vi.mock("src/shared/config.js", () => ({
   parseConfig: vi.fn(),
 }));
-vi.mock("src/lib/log.js", () => ({
+vi.mock("src/shared/log.js", () => ({
   configure: vi.fn(),
   log: vi.fn(),
 }));
 vi.mock("node:fs", () => ({ readFileSync: vi.fn() }));
 
-import { runHook } from "src/lib/run-hook.js";
-import { readAndParsePayload } from "src/lib/payload.js";
-import { findProjectRoot } from "src/lib/paths.js";
-import { parseConfig } from "src/lib/config.js";
+import { runHook } from "src/shared/run-hook.js";
+import { readAndParsePayload } from "src/shared/payload.js";
+import { findProjectRoot } from "src/shared/paths.js";
+import { parseConfig } from "src/shared/config.js";
 
 const basePayload = {
   session_id: "s1",

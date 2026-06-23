@@ -34,7 +34,7 @@ describe("enforce-read-before-write hook", () => {
     p = buildFakeProject({ files: { "src/app.ts": "x" } });
     const target = join(p.projectRoot, "src/app.ts");
     const r = runHook(
-      "enforce-read-before-write",
+      "features/read-before-write/hooks/enforce-read-before-write",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -54,7 +54,7 @@ describe("enforce-read-before-write hook", () => {
     });
     const target = join(p.projectRoot, "src/app.ts");
     const r = runHook(
-      "enforce-read-before-write",
+      "features/read-before-write/hooks/enforce-read-before-write",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -77,7 +77,7 @@ describe("enforce-read-before-write hook", () => {
     });
     const target = join(p.projectRoot, "src/app.ts");
     const r = runHook(
-      "enforce-read-before-write",
+      "features/read-before-write/hooks/enforce-read-before-write",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -101,7 +101,7 @@ describe("enforce-read-before-write hook", () => {
     });
     const target = join(p.projectRoot, "src/app.ts");
     const r = runHook(
-      "enforce-read-before-write",
+      "features/read-before-write/hooks/enforce-read-before-write",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -133,7 +133,7 @@ describe("enforce-read-before-write hook", () => {
     ]);
     const target = join(p.projectRoot, "src/app.ts");
     const r = runHook(
-      "enforce-read-before-write",
+      "features/read-before-write/hooks/enforce-read-before-write",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -160,7 +160,7 @@ describe("enforce-read-before-write hook", () => {
     ]);
     const target = join(p.projectRoot, "src/app.ts");
     const r = runHook(
-      "enforce-read-before-write",
+      "features/read-before-write/hooks/enforce-read-before-write",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -186,7 +186,7 @@ describe("enforce-read-before-write hook", () => {
     ]);
     const target = join(p.projectRoot, "src/app.ts");
     const r = runHook(
-      "enforce-read-before-write",
+      "features/read-before-write/hooks/enforce-read-before-write",
       {
         session_id: "sid",
         cwd: p.projectRoot,

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { configure, log, type Level } from "src/lib/log.js";
+import { configure, log, type Level } from "src/shared/log.js";
 
 function capture() {
   const orig = process.stderr.write.bind(process.stderr);

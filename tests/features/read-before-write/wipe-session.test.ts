@@ -28,7 +28,7 @@ describe("wipe-session hook", () => {
     const sessionDir = join(p.projectRoot, ".nessy", "cache", "sid");
     expect(existsSync(sessionDir)).toBe(true);
     const r = runHook(
-      "wipe-session",
+      "features/read-before-write/hooks/wipe-session",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -49,7 +49,7 @@ describe("wipe-session hook", () => {
     expect(existsSync(sid1Dir)).toBe(true);
     expect(existsSync(sid2Dir)).toBe(true);
     const r = runHook(
-      "wipe-session",
+      "features/read-before-write/hooks/wipe-session",
       {
         session_id: "sid1",
         cwd: p.projectRoot,
@@ -66,7 +66,7 @@ describe("wipe-session hook", () => {
     p = buildFakeProject({ config: `version: 1\nrules: []\n` });
     // No cache dir seeded at all
     const r = runHook(
-      "wipe-session",
+      "features/read-before-write/hooks/wipe-session",
       {
         session_id: "sid",
         cwd: p.projectRoot,

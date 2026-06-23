@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isUnderNessyDir } from "src/lib/guards.js";
+import { isUnderNessyDir } from "src/features/block-nessy-dir-writes/lib/guards.js";
 
 describe("isUnderNessyDir", () => {
   it("direct child of .nessy/ returns true", () => {

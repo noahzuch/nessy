@@ -28,7 +28,7 @@ describe("wipe-agent hook", () => {
     const rootPath = seedCacheFile(p.projectRoot, "sid", null);
     expect(existsSync(rootPath)).toBe(true);
     const r = runHook(
-      "wipe-agent",
+      "features/read-before-write/hooks/wipe-agent",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -47,7 +47,7 @@ describe("wipe-agent hook", () => {
     expect(existsSync(rootPath)).toBe(true);
     expect(existsSync(agentPath)).toBe(true);
     const r = runHook(
-      "wipe-agent",
+      "features/read-before-write/hooks/wipe-agent",
       {
         session_id: "sid",
         agent_id: "a1",
@@ -65,7 +65,7 @@ describe("wipe-agent hook", () => {
     p = buildFakeProject({ config: `version: 1\nrules: []\n` });
     // No cache file seeded
     const r = runHook(
-      "wipe-agent",
+      "features/read-before-write/hooks/wipe-agent",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -79,7 +79,7 @@ describe("wipe-agent hook", () => {
   it("no-op when no .nessy/config.yml — exits 0", () => {
     p = buildFakeProject({ files: { "src/foo.ts": "x" } });
     const r = runHook(
-      "wipe-agent",
+      "features/read-before-write/hooks/wipe-agent",
       {
         session_id: "sid",
         cwd: p.projectRoot,

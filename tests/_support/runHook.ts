@@ -7,13 +7,13 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export type HookResult = { exitCode: number; stdout: string; stderr: string; stdoutJson: unknown };
 
 export function runHook(
-  scriptName: string,
+  scriptPath: string,
   payload: unknown,
   opts: { cwd?: string } = {},
 ): HookResult {
   const repo = join(__dirname, "..", "..");
-  const scriptPath = join(repo, "dist", "hooks", `${scriptName}.js`);
-  const res = spawnSync("node", [scriptPath], {
+  const fullPath = join(repo, "dist", `${scriptPath}.js`);
+  const res = spawnSync("node", [fullPath], {
     input: JSON.stringify(payload),
     cwd: opts.cwd,
     encoding: "utf8",

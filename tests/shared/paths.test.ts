@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { findProjectRoot, normalize } from "src/lib/paths.js";
+import { findProjectRoot, normalize } from "src/shared/paths.js";
 
 let tmpDir: string;
 

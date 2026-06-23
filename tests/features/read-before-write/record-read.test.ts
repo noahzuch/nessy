@@ -15,7 +15,7 @@ describe("record-read hook", () => {
     p = buildFakeProject({ files: { "src/foo.ts": "x" } });
     const target = join(p.projectRoot, "src/foo.ts");
     const r = runHook(
-      "record-read",
+      "features/read-before-write/hooks/record-read",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -34,7 +34,7 @@ describe("record-read hook", () => {
     const target = join(p.projectRoot, "src/foo.ts");
     const stat = statSync(target);
     const r = runHook(
-      "record-read",
+      "features/read-before-write/hooks/record-read",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -59,7 +59,7 @@ describe("record-read hook", () => {
     p = buildFakeProject({ config: `version: 1\nrules: []\n`, files: { "src/bar.ts": "y" } });
     const target = join(p.projectRoot, "src/bar.ts");
     const r = runHook(
-      "record-read",
+      "features/read-before-write/hooks/record-read",
       {
         session_id: "sid",
         agent_id: "agent-42",
@@ -83,7 +83,7 @@ describe("record-read hook", () => {
     p = buildFakeProject({ config: `version: 1\nrules: []\n` });
     const target = join(p.projectRoot, ".nessy/config.yml");
     const r = runHook(
-      "record-read",
+      "features/read-before-write/hooks/record-read",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -106,8 +106,8 @@ describe("record-read hook", () => {
       tool_name: "Read",
       tool_input: { file_path: target },
     };
-    runHook("record-read", payload, { cwd: p.projectRoot });
-    runHook("record-read", payload, { cwd: p.projectRoot });
+    runHook("features/read-before-write/hooks/record-read", payload, { cwd: p.projectRoot });
+    runHook("features/read-before-write/hooks/record-read", payload, { cwd: p.projectRoot });
     const cachePath = join(p.projectRoot, ".nessy/cache/sid/__root__.json");
     const cache = JSON.parse(readFileSync(cachePath, "utf8"));
     expect(cache.reads).toHaveLength(1);

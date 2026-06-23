@@ -14,7 +14,7 @@ describe("block-nessy-dir-writes hook", () => {
     p = buildFakeProject({ config: "version: 1\nrules: []\n" });
     const target = join(p.projectRoot, ".nessy/config.yml");
     const r = runHook(
-      "block-nessy-dir-writes",
+      "features/block-nessy-dir-writes/hooks/block-nessy-dir-writes",
       {
         session_id: "sid",
         cwd: p.projectRoot,
@@ -35,7 +35,7 @@ describe("block-nessy-dir-writes hook", () => {
     });
     const target = join(p.projectRoot, "src/app.ts");
     const r = runHook(
-      "block-nessy-dir-writes",
+      "features/block-nessy-dir-writes/hooks/block-nessy-dir-writes",
       {
         session_id: "sid",
         cwd: p.projectRoot,

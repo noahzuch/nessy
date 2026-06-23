@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseConfig, ConfigError } from "src/lib/config.js";
+import { parseConfig, ConfigError } from "src/shared/config.js";
 
 describe("parseConfig", () => {
   // Test 1: minimal valid config with empty rules
