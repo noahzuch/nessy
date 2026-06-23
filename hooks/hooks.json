@@ -1,21 +1,74 @@
 {
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/features/block-nessy-cli/hooks/block-nessy-cli.js"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/features/block-nessy-dir-writes/hooks/block-nessy-dir-writes.js"
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/features/read-before-write/hooks/enforce-read-before-write.js"
+          }
+        ]
+      }
+    ],
     "UserPromptSubmit": [
-      { "hooks": [{ "type": "command", "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/record-at-mention.js" }] }
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/features/read-before-write/hooks/record-at-mention.js"
+          }
+        ]
+      }
     ],
     "PostToolUse": [
-      { "matcher": "Read", "hooks": [{ "type": "command", "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/record-read.js" }] }
-    ],
-    "PreToolUse": [
-      { "matcher": "Write|Edit", "hooks": [{ "type": "command", "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/block-nessy-dir-writes.js" }] },
-      { "matcher": "Write|Edit", "hooks": [{ "type": "command", "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/enforce-read-before-write.js" }] },
-      { "matcher": "Bash", "hooks": [{ "type": "command", "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/block-nessy-cli.js" }] }
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/features/read-before-write/hooks/record-read.js"
+          }
+        ]
+      }
     ],
     "PreCompact": [
-      { "hooks": [{ "type": "command", "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/wipe-agent.js" }] }
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/features/read-before-write/hooks/wipe-agent.js"
+          }
+        ]
+      }
     ],
     "SessionEnd": [
-      { "hooks": [{ "type": "command", "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/hooks/wipe-session.js" }] }
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/features/read-before-write/hooks/wipe-session.js"
+          }
+        ]
+      }
     ]
   }
 }
