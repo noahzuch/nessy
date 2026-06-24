@@ -22,6 +22,7 @@ for (const feature of features) {
   } catch {
     continue;
   }
+  if (!fragment.hooks) continue;
   for (const [event, entries] of Object.entries(fragment.hooks)) {
     if (!merged.hooks[event]) merged.hooks[event] = [];
     merged.hooks[event].push(...entries);

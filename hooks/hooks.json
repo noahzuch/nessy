@@ -60,6 +60,16 @@
         ]
       }
     ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/dist/features/read-before-write/hooks/wipe-agent.js"
+          }
+        ]
+      }
+    ],
     "SessionEnd": [
       {
         "hooks": [
