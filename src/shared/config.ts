@@ -26,6 +26,15 @@ const ConfigSchema = z.object({
       seen.add(rules[i].name);
     }
   }),
+  brainstorming: z.object({
+    outputFile: z.string(),
+    designSpecTemplate: z.string().optional(),
+    extraContext: z.string().optional(),
+  }),
+  writingPlans: z.object({
+    outputFile: z.string(),
+    extraContext: z.string().optional(),
+  })
 });
 export type Level = z.infer<typeof LevelSchema>;
 export type Rule = z.infer<typeof RuleSchema>;

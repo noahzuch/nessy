@@ -26,8 +26,6 @@ skills/
 
 **Adding a feature's skills:** create `skills/<feature>/` and add `.md` files there. No plugin.json changes required — Claude Code discovers them automatically.
 
-**Invocation:** skills are available as `nessy:<feature>/<skill-name>` (e.g. `nessy:read-before-write/enforce-rules`).
-
 **Why not inside `src/features/`:** `src/` contains TypeScript compiled to `dist/`; skill files are prose that is never compiled. Mixing them in `src/` would require either excluding them from the TypeScript build or adding a copy step. The top-level `skills/` directory is also Claude Code's discovery root — placing skills elsewhere would require explicit registration in `plugin.json`.
 
 **Feature cohesion:** the subdirectory structure (`skills/<feature>/` mirrors `src/features/<feature>/`) preserves the signal that skills and hooks belong to the same feature, without co-locating files of fundamentally different kinds.

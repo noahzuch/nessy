@@ -2,6 +2,10 @@ version: 1
 hints: true
 log_level: info
 rules: []
+brainstorming:
+  outputFile: 'docs/nessy/specs/YYYY-MM-DD_spec-name.md'
+writingPlans:
+  outputFile: 'docs/nessy/plans/YYYY-MM-DD_plan-name.md'
 
 # Example rules — uncomment and adapt to your project:
 #
