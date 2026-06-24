@@ -3,4 +3,5 @@
 # so the `bin` field in package.json is never wired into PATH. Instead, Claude
 # Code adds the plugin's `bin/` directory to the Bash tool's PATH when the
 # plugin is active. This wrapper is that entry point.
-exec node "${CLAUDE_PLUGIN_ROOT}/dist/cli/main.js" "$@"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec node "${SCRIPT_DIR}/../dist/cli/main.js" "$@"

@@ -10,7 +10,7 @@ description: Use when you have a spec or requirements for a multi-step task, bef
 Write a comprehensive implementation plan. You can assume the engineer has the following context:
 
 * CLAUDE.md file
-* File/Folder specific guidelines: `! nessy config rules`
+* File/Folder specific guidelines: !`nessy config rules`
 
 Assume the engineer follows information provided from the above sources but don't expect the engineer to have more context. Also expect him to have questionable taste outside the above specified guidelines. Document everything they need to know: which files to touch for each task, important code snippets, test scenarios (prosa), docs and ADR they might need to read. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD.
 
@@ -18,7 +18,7 @@ Assume the engineer follows information provided from the above sources but don'
 
 **Context:** If working in an isolated worktree, it should have been created via the `superpowers:using-git-worktrees` skill at execution time.
 
-**Save plans to:** `! nessy config writingPlans.outputFile`
+**Save plans to:** !`nessy config writingPlans.outputFile`
 
 ## Input
 
@@ -56,7 +56,6 @@ independently testable deliverable.
 - "Run it to make sure it fails" - step
 - "Implement the minimal code to make the test pass" - step
 - "Run the tests and make sure they pass" - step
-- "Commit" - step
 
 ## Plan Document Header
 
@@ -153,7 +152,7 @@ If you find issues, fix them inline. No need to re-review — just fix and move 
 
 After saving the plan, offer execution choice:
 
-**"Plan complete and saved to `! nessy config writingPlans.outputFile`. Two execution options:**
+**"Plan complete and saved to !`nessy config writingPlans.outputFile`. Two execution options:**
 
 **1. Subagent-Driven (recommended)** - I dispatch a fresh subagent per task, review between tasks, fast iteration
 
@@ -173,4 +172,4 @@ After saving the plan, offer execution choice:
 
 If provided, also consider the following project-specific information for writing implementation plans:
 
-`! nessy config writingPlans.extraContext`
+!`nessy config writingPlans.extraContext`

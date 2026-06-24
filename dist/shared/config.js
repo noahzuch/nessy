@@ -25,6 +25,15 @@ const ConfigSchema = z.object({
             seen.add(rules[i].name);
         }
     }),
+    brainstorming: z.object({
+        outputFile: z.string(),
+        designSpecTemplate: z.string().nullable().default(null),
+        extraContext: z.string().nullable().default(null),
+    }),
+    writingPlans: z.object({
+        outputFile: z.string(),
+        extraContext: z.string().nullable().default(null),
+    })
 });
 export class ConfigError extends Error {
     filePath;

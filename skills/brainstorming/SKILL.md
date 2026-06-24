@@ -106,8 +106,8 @@ Most probably, your human partner does not know exactly what he needs and how/wh
 
 **Documentation:**
 
-- Write the validated design (spec) to `! nessy config brainstorming.outputFile`
-- Use the following template file if provided (if not you can decide the format of the spec): `! nessy config brainstorming.designSpecTemplate`
+- Write the validated design (spec) to !`nessy config brainstorming.outputFile`
+- Use the following template file if provided (if not you can decide the format of the spec): !`nessy config brainstorming.designSpecTemplate`
 
 **Spec Self-Review:**
 After writing the spec document, look at it with fresh eyes:
@@ -144,4 +144,4 @@ Wait for the user's response. If they request changes, make them and re-run the 
 
 If provided, also consider the following project-specific information for writing specs:
 
-`! nessy config brainstorming.extraContext`
+!`nessy config brainstorming.extraContext`

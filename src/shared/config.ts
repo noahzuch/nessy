@@ -28,12 +28,12 @@ const ConfigSchema = z.object({
   }),
   brainstorming: z.object({
     outputFile: z.string(),
-    designSpecTemplate: z.string().optional(),
-    extraContext: z.string().optional(),
+    designSpecTemplate: z.string().nullable().default(null),
+    extraContext: z.string().nullable().default(null),
   }),
   writingPlans: z.object({
     outputFile: z.string(),
-    extraContext: z.string().optional(),
+    extraContext: z.string().nullable().default(null),
   })
 });
 export type Level = z.infer<typeof LevelSchema>;
