@@ -17,3 +17,8 @@ export function unionRequires(matched: Rule[]): string[] {
   for (const r of matched) for (const req of r.require) set.add(req);
   return [...set];
 }
+
+export function isRequired(path: string, rules: Rule[]): boolean {
+  const norm = normalize(path);
+  return rules.some((r) => r.require.includes(norm));
+}

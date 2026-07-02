@@ -29,8 +29,11 @@ describe("record-read hook", () => {
     expect(existsSync(cachePath)).toBe(false);
   });
 
-  it("happy path: writes cache entry with mtime+size", () => {
-    p = buildFakeProject({ config: `version: 1\nrules: []\n`, files: { "src/foo.ts": "x" } });
+  it("happy path: records a file that appears in a require list", () => {
+    p = buildFakeProject({
+      config: `version: 1\nrules:\n  - name: r\n    match: "other/**"\n    require:\n      - src/foo.ts\n`,
+      files: { "src/foo.ts": "x" },
+    });
     const target = join(p.projectRoot, "src/foo.ts");
     const stat = statSync(target);
     const r = runHook(
@@ -55,8 +58,32 @@ describe("record-read hook", () => {
     });
   });
 
+  it("file not in any require list → not recorded", () => {
+    p = buildFakeProject({
+      config: `version: 1\nrules:\n  - name: r\n    match: "src/**"\n    require:\n      - docs/arch.md\n`,
+      files: { "src/foo.ts": "x", "docs/arch.md": "arch" },
+    });
+    const target = join(p.projectRoot, "src/foo.ts");
+    const r = runHook(
+      "features/read-before-write/hooks/record-read",
+      {
+        session_id: "sid",
+        cwd: p.projectRoot,
+        tool_name: "Read",
+        tool_input: { file_path: target },
+      },
+      { cwd: p.projectRoot },
+    );
+    expect(r.exitCode).toBe(0);
+    const cachePath = join(p.projectRoot, ".nessy/cache/sid/__root__.json");
+    expect(existsSync(cachePath)).toBe(false);
+  });
+
   it("agent_id present → cache file at {aid}.json", () => {
-    p = buildFakeProject({ config: `version: 1\nrules: []\n`, files: { "src/bar.ts": "y" } });
+    p = buildFakeProject({
+      config: `version: 1\nrules:\n  - name: r\n    match: "other/**"\n    require:\n      - src/bar.ts\n`,
+      files: { "src/bar.ts": "y" },
+    });
     const target = join(p.projectRoot, "src/bar.ts");
     const r = runHook(
       "features/read-before-write/hooks/record-read",
@@ -98,7 +125,10 @@ describe("record-read hook", () => {
   });
 
   it("repeated read of same file → deduped (single entry)", () => {
-    p = buildFakeProject({ config: `version: 1\nrules: []\n`, files: { "src/baz.ts": "z" } });
+    p = buildFakeProject({
+      config: `version: 1\nrules:\n  - name: r\n    match: "other/**"\n    require:\n      - src/baz.ts\n`,
+      files: { "src/baz.ts": "z" },
+    });
     const target = join(p.projectRoot, "src/baz.ts");
     const payload = {
       session_id: "sid",

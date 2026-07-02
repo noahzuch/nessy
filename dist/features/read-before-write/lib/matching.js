@@ -15,4 +15,8 @@ export function unionRequires(matched) {
             set.add(req);
     return [...set];
 }
+export function isRequired(path, rules) {
+    const norm = normalize(path);
+    return rules.some((r) => r.require.includes(norm));
+}
 //# sourceMappingURL=matching.js.map

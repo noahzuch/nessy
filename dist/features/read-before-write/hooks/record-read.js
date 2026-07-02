@@ -2,7 +2,7 @@ import { statSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { ReadHookPayloadSchema } from "../../../shared/payload.js";
 import { cachePathFor, loadCache, upsertRead, saveCache } from "../../../features/read-before-write/lib/cache.js";
-import { matchRules } from "../../../features/read-before-write/lib/matching.js";
+import { matchRules, isRequired } from "../../../features/read-before-write/lib/matching.js";
 import { log } from "../../../shared/log.js";
 import { normalize } from "../../../shared/paths.js";
 import { runHook } from "../../../shared/run-hook.js";
@@ -11,21 +11,23 @@ runHook("record-read", ReadHookPayloadSchema, { requiresProject: true, requiresC
     const relTarget = normalize(relative(projectRoot, absTarget));
     if (relTarget.startsWith("..") || relTarget.startsWith(".nessy/"))
         return;
-    let st;
-    try {
-        st = statSync(absTarget);
-    }
-    catch {
-        log("warn", `stat failed for ${relTarget}`);
-        return;
-    }
     const cachePath = cachePathFor(projectRoot, payload.session_id, payload.agent_id ?? null);
     const cache = loadCache(cachePath);
-    cache.reads = upsertRead(cache.reads, { path: relTarget, mtime_ms: st.mtimeMs, size: st.size });
-    cache.session_id = payload.session_id;
-    cache.agent_id = payload.agent_id ?? null;
-    saveCache(cachePath, cache);
-    log("debug", `recorded read: ${relTarget}`);
+    if (cfg !== null && isRequired(relTarget, cfg.rules)) {
+        let st;
+        try {
+            st = statSync(absTarget);
+        }
+        catch {
+            log("warn", `stat failed for ${relTarget}`);
+            return;
+        }
+        cache.reads = upsertRead(cache.reads, { path: relTarget, mtime_ms: st.mtimeMs, size: st.size });
+        cache.session_id = payload.session_id;
+        cache.agent_id = payload.agent_id ?? null;
+        saveCache(cachePath, cache);
+        log("debug", `recorded read: ${relTarget}`);
+    }
     try {
         if (!cfg?.hints)
             return;

@@ -2,7 +2,7 @@ import { statSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { UserPromptSubmitPayloadSchema } from "../../../shared/payload.js";
 import { cachePathFor, loadCache, upsertRead, saveCache } from "../../../features/read-before-write/lib/cache.js";
-import { matchRules } from "../../../features/read-before-write/lib/matching.js";
+import { matchRules, isRequired } from "../../../features/read-before-write/lib/matching.js";
 import { log } from "../../../shared/log.js";
 import { normalize } from "../../../shared/paths.js";
 import { runHook } from "../../../shared/run-hook.js";
@@ -38,13 +38,15 @@ runHook("record-at-mention", UserPromptSubmitPayloadSchema, { requiresProject: t
         catch {
             continue;
         }
-        cache.reads = upsertRead(cache.reads, {
-            path: relTarget,
-            mtime_ms: st.mtimeMs,
-            size: st.size,
-        });
-        recorded++;
-        log("debug", `recorded @mention read: ${relTarget}`);
+        if (cfg !== null && isRequired(relTarget, cfg.rules)) {
+            cache.reads = upsertRead(cache.reads, {
+                path: relTarget,
+                mtime_ms: st.mtimeMs,
+                size: st.size,
+            });
+            recorded++;
+            log("debug", `recorded @mention read: ${relTarget}`);
+        }
         try {
             if (!cfg?.hints)
                 continue;
@@ -61,11 +63,11 @@ runHook("record-at-mention", UserPromptSubmitPayloadSchema, { requiresProject: t
             log("warn", `hint collection skipped: ${e instanceof Error ? e.message : String(e)}`);
         }
     }
-    if (recorded === 0)
-        return;
-    cache.session_id = payload.session_id;
-    cache.agent_id = payload.agent_id ?? null;
-    saveCache(cachePath, cache);
+    if (recorded > 0) {
+        cache.session_id = payload.session_id;
+        cache.agent_id = payload.agent_id ?? null;
+        saveCache(cachePath, cache);
+    }
     if (allUnread.length === 0)
         return;
     const message = [

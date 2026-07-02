@@ -15,6 +15,7 @@ export function nessyInit(print: (m: string) => void, cwd: string): number {
   }
   mkdirSync(nessy);
   writeFileSync(join(nessy, "config.yml"), loadTemplate());
+  writeFileSync(join(nessy, ".gitignore"), "*\n");
   print(`Initialized .nessy/ at ${cwd}. Edit .nessy/config.yml to define rules.`);
   return 0;
 }

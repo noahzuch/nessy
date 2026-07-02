@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { matchRules, unionRequires } from "src/features/read-before-write/lib/matching.js";
+import { matchRules, unionRequires, isRequired } from "src/features/read-before-write/lib/matching.js";
 import type { Rule } from "src/shared/config.js";
 
 describe("matchRules", () => {
@@ -59,5 +59,34 @@ describe("matchRules", () => {
     const rule: Rule = { name: "r", match: ["src/**"], require: ["x"] };
     const result = matchRules("src\\foo.ts", [rule]);
     expect(result).toEqual([rule]);
+  });
+});
+
+describe("isRequired", () => {
+  it("returns true when path appears in a rule's require list", () => {
+    const rules: Rule[] = [{ name: "r", match: ["src/**"], require: ["docs/arch.md"] }];
+    expect(isRequired("docs/arch.md", rules)).toBe(true);
+  });
+
+  it("returns false when path is not in any rule's require list", () => {
+    const rules: Rule[] = [{ name: "r", match: ["src/**"], require: ["docs/arch.md"] }];
+    expect(isRequired("src/foo.ts", rules)).toBe(false);
+  });
+
+  it("returns false for empty rules array", () => {
+    expect(isRequired("docs/arch.md", [])).toBe(false);
+  });
+
+  it("returns true when path appears in any of multiple rules", () => {
+    const rules: Rule[] = [
+      { name: "r1", match: ["src/**"], require: ["docs/arch.md"] },
+      { name: "r2", match: ["lib/**"], require: ["README.md"] },
+    ];
+    expect(isRequired("README.md", rules)).toBe(true);
+  });
+
+  it("normalizes backslashes before checking", () => {
+    const rules: Rule[] = [{ name: "r", match: ["src/**"], require: ["docs/arch.md"] }];
+    expect(isRequired("docs\\arch.md", rules)).toBe(true);
   });
 });

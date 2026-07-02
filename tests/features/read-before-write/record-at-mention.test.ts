@@ -37,8 +37,11 @@ describe("record-at-mention hook", () => {
     expect(existsSync(join(p.projectRoot, ".nessy/cache/sid/__root__.json"))).toBe(false);
   });
 
-  it("happy path: writes cache entry with mtime+size", () => {
-    p = buildFakeProject({ config: `version: 1\nrules: []\n`, files: { "src/foo.ts": "x" } });
+  it("happy path: records a file that appears in a require list", () => {
+    p = buildFakeProject({
+      config: `version: 1\nrules:\n  - name: r\n    match: "other/**"\n    require:\n      - src/foo.ts\n`,
+      files: { "src/foo.ts": "x" },
+    });
     const target = join(p.projectRoot, "src/foo.ts");
     const stat = statSync(target);
     const r = runHook("features/read-before-write/hooks/record-at-mention", basePayload(p.projectRoot, `edit @src/foo.ts for me`), {
@@ -56,8 +59,23 @@ describe("record-at-mention hook", () => {
     });
   });
 
+  it("@ mention of file not in any require list → not recorded", () => {
+    p = buildFakeProject({
+      config: `version: 1\nrules:\n  - name: r\n    match: "src/**"\n    require:\n      - docs/arch.md\n`,
+      files: { "src/foo.ts": "x", "docs/arch.md": "arch" },
+    });
+    const r = runHook("features/read-before-write/hooks/record-at-mention", basePayload(p.projectRoot, `edit @src/foo.ts`), {
+      cwd: p.projectRoot,
+    });
+    expect(r.exitCode).toBe(0);
+    expect(existsSync(join(p.projectRoot, ".nessy/cache/sid/__root__.json"))).toBe(false);
+  });
+
   it("agent_id present → cache file at {aid}.json", () => {
-    p = buildFakeProject({ config: `version: 1\nrules: []\n`, files: { "src/bar.ts": "y" } });
+    p = buildFakeProject({
+      config: `version: 1\nrules:\n  - name: r\n    match: "other/**"\n    require:\n      - src/bar.ts\n`,
+      files: { "src/bar.ts": "y" },
+    });
     const r = runHook(
       "features/read-before-write/hooks/record-at-mention",
       basePayload(p.projectRoot, `@src/bar.ts`, { agent_id: "agent-7" }),
@@ -92,7 +110,10 @@ describe("record-at-mention hook", () => {
   });
 
   it("duplicate @ mention → single cache entry", () => {
-    p = buildFakeProject({ config: `version: 1\nrules: []\n`, files: { "src/foo.ts": "x" } });
+    p = buildFakeProject({
+      config: `version: 1\nrules:\n  - name: r\n    match: "other/**"\n    require:\n      - src/foo.ts\n`,
+      files: { "src/foo.ts": "x" },
+    });
     const r = runHook(
       "features/read-before-write/hooks/record-at-mention",
       basePayload(p.projectRoot, `@src/foo.ts and @src/foo.ts again`),

@@ -2,7 +2,7 @@ import { statSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { UserPromptSubmitPayloadSchema } from "src/shared/payload.js";
 import { cachePathFor, loadCache, upsertRead, saveCache } from "src/features/read-before-write/lib/cache.js";
-import { matchRules } from "src/features/read-before-write/lib/matching.js";
+import { matchRules, isRequired } from "src/features/read-before-write/lib/matching.js";
 import { log } from "src/shared/log.js";
 import { normalize } from "src/shared/paths.js";
 import { runHook } from "src/shared/run-hook.js";
@@ -45,13 +45,15 @@ runHook(
         continue;
       }
 
-      cache.reads = upsertRead(cache.reads, {
-        path: relTarget,
-        mtime_ms: st.mtimeMs,
-        size: st.size,
-      });
-      recorded++;
-      log("debug", `recorded @mention read: ${relTarget}`);
+      if (cfg !== null && isRequired(relTarget, cfg.rules)) {
+        cache.reads = upsertRead(cache.reads, {
+          path: relTarget,
+          mtime_ms: st.mtimeMs,
+          size: st.size,
+        });
+        recorded++;
+        log("debug", `recorded @mention read: ${relTarget}`);
+      }
 
       try {
         if (!cfg?.hints) continue;
@@ -66,10 +68,11 @@ runHook(
       }
     }
 
-    if (recorded === 0) return;
-    cache.session_id = payload.session_id;
-    cache.agent_id = payload.agent_id ?? null;
-    saveCache(cachePath, cache);
+    if (recorded > 0) {
+      cache.session_id = payload.session_id;
+      cache.agent_id = payload.agent_id ?? null;
+      saveCache(cachePath, cache);
+    }
 
     if (allUnread.length === 0) return;
     const message = [

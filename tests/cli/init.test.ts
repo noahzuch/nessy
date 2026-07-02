@@ -23,6 +23,14 @@ it("creates .nessy/config.yml with template content", () => {
   expect(content).toContain("rules: []");
 });
 
+it("creates .nessy/.gitignore that ignores everything", () => {
+  cwd = mkdtempSync(join(tmpdir(), "nessy-init-test-"));
+  nessyInit((m) => m, cwd);
+  const gitignorePath = join(cwd, ".nessy", ".gitignore");
+  expect(existsSync(gitignorePath)).toBe(true);
+  expect(readFileSync(gitignorePath, "utf8").trim()).toBe("*");
+});
+
 it("refuses when .nessy/ already exists", () => {
   cwd = mkdtempSync(join(tmpdir(), "nessy-init-test-"));
   mkdirSync(join(cwd, ".nessy"));
