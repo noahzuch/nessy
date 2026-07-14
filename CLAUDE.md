@@ -15,7 +15,7 @@ npm run format       # prettier write
 
 Build = `tsc && tsc-alias && node scripts/merge-hooks.mjs`. `tsc-alias` post-processes the compiled output to rewrite `src/*` path aliases to relative paths; `merge-hooks.mjs` regenerates `hooks/hooks.json` from each feature's `hooks.fragment.json`. **Always rebuild before running hook integration tests** — they invoke `dist/` directly via `node`.
 
-`dist/` is committed. Users install the plugin without a build step; the compiled output must be up-to-date before pushing.
+**Deployment:** `dist/` is a release-only artifact and is **not tracked on `main`** — never commit it. To ship, push source to `main` (freely; `main` publishes nothing), then trigger the **Release** GitHub Actions workflow and pick a `patch`/`minor`/`major` bump. CI gates on lint + build + test, bumps the version in `plugin.json` and `package.json`, builds `dist/`, and advances the `release` branch that users install from. See `docs/adr/0003-release-automation.md`.
 
 ## Project layout
 
