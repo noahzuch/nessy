@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump level"
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0 # full history so the release-branch merge has a merge base
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # --- Gate part 1: lint on main ---
+      - run: npm run lint
+
+      # --- Move onto the release branch (source == main; no dist in tree yet) ---
+      - name: Prepare release branch
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          MAIN_SHA="$(git rev-parse HEAD)"
+          if git ls-remote --exit-code --heads origin release >/dev/null 2>&1; then
+            git fetch origin release
+            git checkout -B release origin/release
+            # main is authoritative for source; 'theirs' resolves any conflict toward main.
+            # main no longer tracks dist/, so this drops the previous release's tracked dist/.
+            git merge -X theirs --no-edit "$MAIN_SHA"
+          else
+            git checkout -B release "$MAIN_SHA"
+          fi
+
+      # --- Bump version on the release branch ---
+      - name: Bump version
+        id: bump
+        run: |
+          set -euo pipefail
+          VERSION="$(node scripts/bump-version.mjs '${{ inputs.bump }}')"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # --- Build the release artifact ---
+      - run: npm run build
+
+      # --- Gate part 2: tests (now that dist/ exists) ---
+      - run: npm test
+
+      # --- Commit artifact + version bump and advance release (no force-push) ---
+      - name: Publish release commit
+        run: |
+          set -euo pipefail
+          VERSION="${{ steps.bump.outputs.version }}"
+          git add -A
+          git add -f dist
+          git commit -m "release: v${VERSION}"
+          git tag "nessy--v${VERSION}"
+          git push origin release
+          git push origin "nessy--v${VERSION}"
