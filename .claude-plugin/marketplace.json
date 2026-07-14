@@ -6,7 +6,11 @@
   "plugins": [
     {
       "name": "nessy",
-      "source": "./",
+      "source": {
+        "source": "github",
+        "repo": "noahzuch/nessy",
+        "ref": "release"
+      },
       "description": "Nessy, a development workflow harness"
     }
   ]
