@@ -42,7 +42,7 @@ jobs:
             git fetch origin release
             git checkout -B release origin/release
             # main is authoritative for source; 'theirs' resolves any conflict toward main.
-            # main no longer tracks dist/, so this drops the previous release's tracked dist/.
+            # The previous release's dist/ carries over here; the clean rebuild below refreshes it.
             git merge -X theirs --no-edit "$MAIN_SHA"
           else
             git checkout -B release "$MAIN_SHA"
@@ -56,8 +56,12 @@ jobs:
           VERSION="$(node scripts/bump-version.mjs '${{ inputs.bump }}')"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      # --- Build the release artifact ---
-      - run: npm run build
+      # --- Build the release artifact (clean first so deleted sources leave no orphaned .js) ---
+      - name: Build release artifact
+        run: |
+          set -euo pipefail
+          rm -rf dist
+          npm run build
 
       # --- Gate part 2: tests (now that dist/ exists) ---
       - run: npm test
