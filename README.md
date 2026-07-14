@@ -95,7 +95,7 @@ npm run build    # compile TypeScript → dist/
 npm run lint     # type-check without emitting
 ```
 
-`dist/` is committed so Claude Code can load the plugin without a separate build step on the user's machine.
+`dist/` is **not** tracked on `main` — it's a release-only artifact. CI builds it and commits it onto the `release` branch during a release (see [Releasing](#releasing)), so users install a ready-to-run plugin with no build step, while `main` stays free of generated output. Run `npm run build` locally only to run the integration tests, which invoke `dist/` directly.
 
 Path aliases: `src/` and `tests/` are configured as import aliases in both `vitest.config.ts` (runtime) and `tsconfig.json` (editor). Use `tsconfig.test.json` as your IDE's project for test files — it covers both `src/` and `tests/` without `rootDir` restrictions.
 
@@ -106,3 +106,18 @@ Path aliases: `src/` and `tests/` are configured as import aliases in both `vite
 To add hook registrations for a new feature, create `src/features/<feature-name>/hooks.fragment.json` and run `npm run build`. Direct edits to `hooks/hooks.json` will be overwritten on the next build.
 
 See [docs/adr/0001-hooks-json-generation.md](docs/adr/0001-hooks-json-generation.md) for the full rationale and fragment format.
+
+## Releasing
+
+Releases are automated and gated by CI. Users install the plugin pinned to the `release` branch (via the marketplace `source.ref`), so **pushing to `main` publishes nothing** — `main` is a freely-pushable development branch.
+
+To ship a new version:
+
+1. Push your source changes to `main`. The **CI** workflow runs lint, build, and tests as a signal.
+2. Trigger the **Release** workflow: GitHub → **Actions** → **Release** → **Run workflow**, and choose a bump level (`patch`, `minor`, or `major`).
+
+The Release workflow gates on lint + build + tests, then bumps the version in `plugin.json` and `package.json`, builds `dist/`, and advances the `release` branch — cutting a `nessy--v<version>` tag. If the gate fails, the `release` branch is left untouched, so broken code never reaches users. You never build, bump the version, or commit `dist/` by hand.
+
+The `version` in `.claude-plugin/plugin.json` gates updates: users only receive an update when it changes, which the bump handles automatically.
+
+See [docs/adr/0003-release-automation.md](docs/adr/0003-release-automation.md) for the full design and rationale.
