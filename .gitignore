@@ -5,4 +5,5 @@ node_modules/
 .vscode/
 .claude/settings.local.json
 
-# dist/ is committed (see spec §2 Installation and Updates)
+# dist/ is a release-only artifact, built by CI onto the `release` branch
+dist/
