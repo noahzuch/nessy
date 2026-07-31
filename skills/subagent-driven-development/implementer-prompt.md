@@ -77,7 +77,7 @@ Subagent (general-purpose):
     The controller can provide more context, re-dispatch with a more capable model,
     or break the task into smaller pieces.
 
-    ## Before Reporting Back: Self-Review
+    ## Before Reporting Back DONE or DONE_WITH_CONCERNS: Self-Review
 
     Review your work with fresh eyes. Ask yourself:
 
