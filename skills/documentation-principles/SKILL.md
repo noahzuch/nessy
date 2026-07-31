@@ -1,3 +1,7 @@
+---
+name: documentation-principles
+---
+
 # Documentation Principles
 
 Shared form principles for documentation.
@@ -24,12 +28,6 @@ State each fact once. Point to the source instead of restating it — both withi
 > 
 > After: "The cache format is defined in Architecture § Cache."
 
-## Follow the template
-
-If a template or skeleton is provided, conform to its structure, headings, and order.
-
-**Violation:** inventing a different structure, or dropping/renaming sections the template defines.
-
 ## Match existing docs
 
 Align terminology, tone, and conventions to similar documents already in the project. Where there is no precedent, default to business-level formality.
@@ -48,7 +46,7 @@ Use the simplest wording that conveys the meaning. No ornate or elaborate phrasi
 
 ## Exploit the format
 
-Use the features the target format provides — tables, sections, code blocks, callouts. Use a diagram or image where a visual conveys structure better than prose.
+Use the features the target format provides — tables, sections, code blocks, callouts. Use a diagram or image where a visual conveys structure better than prose. Investigate which options you have. Is mermaid installed? Can I include an image? If you think an image would help explaining, your human partner can help you with obtaining e.g. screenshots.
 
 **Violation:** a wall of prose listing items that belong in a table; a flow described in paragraphs where a diagram would be clearer.
 
