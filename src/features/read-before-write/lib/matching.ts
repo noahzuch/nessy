@@ -8,8 +8,13 @@ function normalize(path: string): string {
   return path.split("\\").join("/");
 }
 
+// Rule globs are gitignore patterns rooted at the project, so a path that escapes
+// the root can never match one — and `ignore` rejects such paths outright.
+const escapesRoot = (p: string): boolean => p === ".." || p.startsWith("../");
+
 export function matchRules(targetPath: string, rules: Rule[]): Rule[] {
   const norm = normalize(targetPath);
+  if (escapesRoot(norm)) return [];
   return rules.filter((r) => ignore().add(r.match).ignores(norm));
 }
 export function unionRequires(matched: Rule[]): string[] {

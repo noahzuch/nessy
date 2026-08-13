@@ -20,7 +20,9 @@ runHook(
     if (matched.length === 0) return;
     const required = unionRequires(matched);
 
-    const cache = loadCache(cachePathFor(projectRoot, payload.session_id, payload.agent_id ?? null));
+    const cache = loadCache(
+      cachePathFor(projectRoot, payload.session_id, payload.agent_id ?? null),
+    );
     const byPath = new Map(cache.reads.map((r) => [r.path, r]));
 
     type Issue = { path: string; status: "missing" | "stale" | "config-error" };
@@ -68,10 +70,10 @@ runHook(
         `Nessy: Cannot Write/Edit \`${relTarget}\` yet — required context is not loaded.`,
         ``,
         `Triggered rule(s): ${names}`,
-        `You must have these files in your current context before writing:`,
+        `You must have these files in your current context to be able to write correct content for the file you tried to edit:`,
         ...lines,
         ``,
-        `Use the Read tool on each of the files above, then retry the same Write/Edit.`,
+        `Use the Read tool on each of the files above. Then **don't blindly retry you edit action**, but reconsider if you should change something based on the extra knowledge you gained.`,
         ``,
         `Note: even if a prior summary mentions these files, recent compaction may`,
         `have removed their actual content from your context. Re-read them.`,
