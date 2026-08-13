@@ -87,3 +87,11 @@ If no implicit enumeration feature can be used (e.g. in section headers), it is 
 >  . Run `uv sync`
 >  . Run `pytest tests`
 > ```
+
+## Write good diagrams
+
+When writing diagrams follow  these principles:
+
+* Always add a Legend as a subgraph explaining the different types of components visible in your diagram if not directly clear
+* Think about which diagram type you want to draw. Is it a control flow, data flow, C4, Class, Package, Use Case diagram or any other diagram. Try to stay consistent within one diagram type.
+* Render diagrams to check if they have the expected result

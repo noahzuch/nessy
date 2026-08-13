@@ -28,7 +28,9 @@ const basePayload = {
   hook_event_name: "PreToolUse",
 };
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe("runHook — requiresProject: false", () => {
   it("calls fn with projectRoot null when root not found", () => {

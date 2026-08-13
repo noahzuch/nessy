@@ -2,7 +2,12 @@ import { describe, it, expect, afterEach } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { cachePathFor, loadCache, upsertRead, saveCache } from "src/features/read-before-write/lib/cache.js";
+import {
+  cachePathFor,
+  loadCache,
+  upsertRead,
+  saveCache,
+} from "src/features/read-before-write/lib/cache.js";
 import type { ReadEntry, CacheFile } from "src/features/read-before-write/lib/cache.js";
 
 let tmpDir: string;

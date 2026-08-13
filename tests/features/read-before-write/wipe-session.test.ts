@@ -21,7 +21,7 @@ describe("wipe-session hook", () => {
   });
 
   it("removes session dir and all files inside", () => {
-    p = buildFakeProject({ config: `version: 1\nrules: []\n` });
+    p = buildFakeProject({ config: { rules: [] } });
     seedCacheFile(p.projectRoot, "sid", "__root__.json");
     seedCacheFile(p.projectRoot, "sid", "a1.json");
     seedCacheFile(p.projectRoot, "sid", "a2.json");
@@ -41,7 +41,7 @@ describe("wipe-session hook", () => {
   });
 
   it("leaves other session dirs untouched", () => {
-    p = buildFakeProject({ config: `version: 1\nrules: []\n` });
+    p = buildFakeProject({ config: { rules: [] } });
     seedCacheFile(p.projectRoot, "sid1", "__root__.json");
     seedCacheFile(p.projectRoot, "sid2", "__root__.json");
     const sid1Dir = join(p.projectRoot, ".nessy", "cache", "sid1");
@@ -63,7 +63,7 @@ describe("wipe-session hook", () => {
   });
 
   it("tolerates missing cache dir — exits 0", () => {
-    p = buildFakeProject({ config: `version: 1\nrules: []\n` });
+    p = buildFakeProject({ config: { rules: [] } });
     // No cache dir seeded at all
     const r = runHook(
       "features/read-before-write/hooks/wipe-session",

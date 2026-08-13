@@ -1,6 +1,6 @@
 ---
 name: writing-documentation
-description: "Use when writing, drafting, or editing any text-based documentation artifact — a README, spec, user manual, guide, reference, or design doc — in any source format (md, adoc, txt, rst, ...)."
+description: "Use when writing, drafting, or editing any text-based documentation artifact — a README, spec, user manual, guide, reference, or design doc — in any source format (md, adoc, ...)."
 allowed-tools: Bash(nessy:*)
 ---
 
@@ -59,10 +59,11 @@ digraph writing_documentation {
     "Write outline + short summaries to file" -> "human partner reviews outline?";
     "human partner reviews outline?" -> "Write outline + short summaries to file" [label="changes"];
     "human partner reviews outline?" -> "Fill each section, one at a time" [label="approved"];
+    "Fill each section, one at a time" -> "Invoke reviewing-documentation";
 }
 ```
 
-Create a task for each step below and work them in order.
+You must create a task for each subsection below and work them in order.
 
 ### 1. Research the material
 
@@ -71,14 +72,15 @@ You can't structure and write what you don't understand. Before conceptualizing 
 - **Skeleton input:** read every section summary. What does each one commit you to saying? Where is it thin — a summary that names a topic but gives you nothing concrete to write? Note those; they become questions.
 - **Artifact input:** read the actual source. Trace how the thing works, not how you assume it works. For code, follow the real control flow, public interfaces, and configuration. For an existing system, find the authoritative source rather than guessing.
 - **The WHY, not just the WHAT:** It is extremely important to also finding out **WHY** things have been done they way they are. This information is essential for future readers. Whenever you come over a fact you want to include in the final documentation, search for why the fact is true. If there is no definitive source, **ALWAYS** ask your human partner.
-- **Documents are not isolated**. Search for and read existing documents that may be connected. They not only set the terminology, tone, and conventions you must match. They also often reveal important facts and gives you the bigger picture of how the files you are working on fit in.
+- **Documents are not isolated**. Search for and read existing documents that may be connected. They not only set the terminology, tone, and conventions you must match. They also often reveal important facts and gives you the bigger picture of how the files you are working on fit in. Remember here: Reference instead of restate.
 
 ### 2. Ask clarifying questions
 
 This step is not optional — do it explicitly, even when the task looks self-evident. Documentation fails on unstated assumptions: who the reader is, what they already know, which format and file the output belongs in, what's in scope, which facts are authoritative when sources disagree, why decisions where made the way they are made. Ask until you have no blind spots that would change the structure or the content. One question at a time, multiple-choice when it's cleaner.
 
-Always at least cover the following topics:
+Things to always consider. Ask per list item everytime, then extend depending on what you need to clarify:
 
+* Audience: Who is the audience of the file. This greatly impacts wording and phrasing. But it also influences what from the source material and the users answers should be part of the documentation. A business documentation needs to describe the process from a business standpoint, leaving out technical details that don't affect the end-user, while adding explanations as to how to interact with the component is more important.
 * Scope: Is the documentation specific to one component or should it be general over multiple ones. Oftentimes, an example is used as source material, but the documentation should state information in a general way.
 * Inferred information: Information you only inferred from the input, but was never stated explicitly should be discussed and validated with your human partner.
 * The WHY: Ask your human partner about WHY things are done if you can not find an explanation yourself.
@@ -114,8 +116,56 @@ Now replace each summary with final content, section by section, yourself. Writi
 
 As you write each section apply every principle from the documentation-principles.
 
-### 8. Hand off to review
+#### Writing diagrams
 
-Tell your human partner the documentation is drafted, name every file you created or changed, and let them review.
+Diagrams help visualize complex processes, structures, ideas. Whenever you come across one of the following scenarios, **always** ask your human partner if a diagram would be a good idea:
+
+* A complex process (business or technical) explained in text form 
+* Architectural breakdowns in repos, projects, folders, packages or files
+* Any long form of text that is explainable also with a diagram
+
+When adding diagrams, always render them yourself and examine the output. Iterate over the diagram until it not only contains the required information, but also looks good. Things to consider are:
+
+* Is some content of the diagram cut-off
+* If text is too long, it could clip or overlay other diagram content or make boxes to big. Shorten the text. The complete explanation is in the text anyway.
+* Does the diagram have big areas of empty space? Try to make the diagram more balanced.
+* Does your mermaid render the way you expect? Maybe you have to change the syntax to get the way you want.
+
+#### Writing proofable statement
+
+The most important goal is to write correct documentation, meaning write documentation where facts have proof and sources. While filling a section, annotate each fact with a source and proof. A source is composed of a file path and linenumber from where you got the fact. There are 4 cases:
+
+* You know the fact is true and during research found a source. Then write down the source (file + linenumber)
+  **Format**: `FACT-CHECK: True. <File>:linenumberrange`
+* You think the fact is true, but there is no source: You should immediately ASK your human partner if the fact is correct and not assume it without proof. Then either don't include the fact if the user declines it or state that the user has given you the information
+  **Format**: `FACT-CHECK: No source evidence. User Input: <User input after asking>`
+* You think the fact is wrong, but there is a source: You should immediately ASK your human partner if the source or your intuition is correct. Never just leave out such a fact.
+  **Format**: `FACT-CHECK: Unsure. User Input: <User input after asking>`
+* You think the fact is wrong and there is no source: Don't include it at all!
+
+A fact can consist of multiple sources/proofs, like a statement you got from the source code together with an explanation you got from your human partner. Then annotate the fact with two lines, one for each case.
+
+As a guide, annotate the following facts in a specific way:
+
+* Sentences: As a comment above the sentence (You can split paragraphs with a single newline in most formats like md,adoc without changing the output. This allows adding comments to every sentence in a paragraph)
+* List items: As a comment above the list item
+* Tables: Facts are rows, comments before each row
+* Diagrams: Facts are shapes and connections: Annotate inside the diagram block every shape and connection definition
+
+*Completeness*: The complete documentation consists of facts, so make sure there is no part of the documentation that does not have a source.
+
+*Note*: These comments only exist to validate and review the document during the writing process and will be removed by your human partner during their final review.
+
+### 8. Subagent review
+
+Before passing the document to your human partner for a review, you *MUST* trigger subagents to do a first review. This is a user request. Don't review it yourself, but let the subagents work:
+
+Review the written code via two subagents. First read `documentation-principles-reviewer-prompt.md` and follow its instruction to trigger and interact with the subagent responsible for checking the documentation principles.
+
+Only after you are finished with the first subagent follow the instructions in `correctness-reviewer-prompt.md` to trigger and interact with the correctness subagent.
+
+### 9. Hand off to review
+
+Tell your human partner the documentation is drafted, name every file you created or changed, and let them review. Their job is to remove the fact check comments during review.
 
 Do not commit the files by default, let the outer process decide if you should commit changes.

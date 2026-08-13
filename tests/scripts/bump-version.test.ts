@@ -2,6 +2,9 @@ import { describe, it, expect } from "vitest";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+// The build scripts are plain JS with no declarations, so this import is implicitly
+// `any`.
+// @ts-expect-error TS7016
 import { bumpVersion, applyBump } from "../../scripts/bump-version.mjs";
 
 describe("bumpVersion", () => {
