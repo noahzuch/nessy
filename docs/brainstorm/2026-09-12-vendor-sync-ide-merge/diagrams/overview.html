@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>vendor-sync — building blocks</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: #fff; color: #1f2328; font: 14px/1.4 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; width: 900px; }
+  h1 { font-size: 18px; margin: 0 0 16px; }
+  .grid { display: grid; grid-template-columns: 560px 300px; gap: 0 16px; align-items: center; }
+  .main { grid-column: 1; }
+  .side { grid-column: 2; display: flex; align-items: center; }
+  .inline { display: flex; align-items: center; gap: 12px; }
+  .layer { border: 2px solid #57606a; border-radius: 8px; padding: 10px 12px; background: #f6f8fa; }
+  .layer h2 { font-size: 14px; margin: 0 0 6px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .box { border: 1.5px solid #57606a; border-radius: 6px; background: #fff; padding: 4px 8px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+  .data { border-style: dashed; background: #fff8e6; }
+  .person { border: 2px solid #8250df; border-radius: 18px; padding: 8px 14px; background: #fbefff; font-weight: 600; text-align: center; }
+  .arrow { height: 34px; display: flex; align-items: center; padding-left: 30px; color: #57606a; font-size: 12.5px; }
+  .arrow::before { content: "▼"; font-size: 15px; margin-right: 8px; }
+  .side .link { color: #57606a; font-size: 12.5px; margin-right: 8px; white-space: nowrap; }
+  .note { color: #57606a; font-size: 12px; margin-top: 5px; }
+  .legend { margin-top: 20px; border-top: 1px solid #d0d7de; padding-top: 10px; display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; font-size: 12px; }
+  .legend .box, .legend .person { font-size: 11.5px; padding: 2px 7px; }
+</style>
+</head>
+<body>
+<h1>vendor-sync — building blocks and who calls whom</h1>
+<div class="grid">
+  <div class="main"><div class="person" style="width:160px">User</div></div>
+  <div class="side"></div>
+
+  <div class="main"><div class="arrow">invokes the skill, answers questions, says when finished</div></div>
+  <div class="side"></div>
+
+  <div class="main"><div class="inline"><div class="person" style="width:160px">Agent</div><span class="link" style="color:#57606a;font-size:12.5px;white-space:nowrap">reads ▶</span>
+    <div class="layer"><h2>Skill text</h2>
+      <div class="row"><div class="box">SKILL.md</div><div class="box">add.md</div><div class="box">sync.md</div><div class="box">remove.md</div><div class="box">list.md</div></div>
+    </div></div></div>
+  <div class="side"></div>
+
+  <div class="main"><div class="arrow">runs <code>&nbsp;node scripts/vendor-&lt;action&gt;.mjs&nbsp;</code>, reads one JSON object</div></div>
+  <div class="side"></div>
+
+  <div class="main"><div class="layer"><h2>Entry scripts</h2>
+    <div class="row"><div class="box">vendor-add.mjs</div><div class="box">vendor-sync.mjs</div><div class="box">vendor-remove.mjs</div><div class="box">vendor-list.mjs</div></div>
+    <div class="note">argument dispatch; start, --continue, --abort</div></div></div>
+  <div class="side"></div>
+
+  <div class="main"><div class="arrow">import</div></div>
+  <div class="side"></div>
+
+  <div class="main"><div class="layer"><h2>Library modules</h2>
+    <div class="row"><div class="box">merge.mjs</div><div class="box">connection.mjs</div><div class="box">git.mjs</div><div class="box">contract.mjs</div></div>
+    <div class="note">dependencies one way only (modules.html)</div></div></div>
+  <div class="side"></div>
+
+  <div class="main"><div class="arrow">spawn <code>&nbsp;git&nbsp;</code>, read and write files</div></div>
+  <div class="side"></div>
+
+  <div class="main"><div class="layer"><h2>Git and the file system</h2>
+    <div class="row">
+      <div class="box data">index &amp; objects</div>
+      <div class="box data">refs/vendor/&lt;slug&gt;</div>
+      <div class="box data">&lt;dir&gt;/.vendor.json</div>
+      <div class="box data">.vendor-sync/base/&lt;slug&gt;/</div>
+      <div class="box data">.vendor-sync/scratch/&lt;slug&gt;/</div>
+    </div>
+    <div class="note">the conflict state lives in the index</div></div></div>
+  <div class="side"><span class="link">◀ resolves conflicts<br>(used by the User)</span><div class="person">IDE, git mergetool<br>or editor</div></div>
+</div>
+<div class="legend">
+  <strong>Legend</strong>
+  <span class="person">actor</span><span>person or program outside the skill</span>
+  <span class="box">component</span><span>file of the skill</span>
+  <span class="box data">state</span><span>persistent state</span>
+  <span>▼ ◀ ▶ call or use, in the arrow's direction</span>
+</div>
+</body>
+</html>
