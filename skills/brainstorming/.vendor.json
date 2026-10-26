@@ -1,0 +1,9 @@
+{
+  "slug": "skills-brainstorming",
+  "repo": "https://github.com/qaware-internal/agentic-marketplace",
+  "path": "plugins/brainstorm/skills/brainstorm",
+  "ref": "main",
+  "sha": "b142d6111f417b8db798b0966e0507ee58227a10",
+  "base_tree": "e67f07ded3a6fdeae47ea2113abc64cc11ee453e",
+  "in_progress": null
+}

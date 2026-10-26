@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>vendor-sync — modules</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: #fff; color: #1f2328; font: 13px/1.35 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; width: 900px; }
+  h1 { font-size: 18px; margin: 0 0 6px; }
+  p.sub { margin: 0 0 12px; color: #57606a; font-size: 12.5px; }
+  .mod { border: 2px solid #57606a; border-radius: 6px; background: #fff; }
+  .mod > .name { font-family: ui-monospace, Menlo, monospace; font-weight: 700; font-size: 13px; padding: 5px 10px; border-bottom: 1.5px solid #57606a; background: #f6f8fa; }
+  .mod > .name small { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; font-weight: 400; color: #57606a; margin-left: 8px; }
+  .mod ul { margin: 0; padding: 6px 10px 8px 22px; font-family: ui-monospace, Menlo, monospace; font-size: 11px; columns: 2; column-gap: 18px; }
+  .mod ul.one { columns: 1; }
+  .mod ul.three { columns: 3; }
+  .mod li { break-inside: avoid; }
+  .entry { display: flex; gap: 8px; padding: 8px 10px; }
+  .entry span { border: 1.5px solid #57606a; border-radius: 5px; padding: 3px 8px; font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; }
+  .dep { color: #57606a; font-size: 12px; padding: 5px 0 5px 40px; }
+  .dep::before { content: "▼ "; }
+  .pair { display: grid; grid-template-columns: 1fr 70px 1fr; align-items: center; }
+  .side { text-align: center; color: #57606a; font-size: 12px; }
+  .legend { margin-top: 16px; border-top: 1px solid #d0d7de; padding-top: 10px; display: flex; gap: 18px; align-items: center; font-size: 12px; }
+  .legend .mod { display: inline-block; }
+  .legend .mod .name { border-bottom: none; padding: 2px 8px; font-size: 11.5px; }
+</style>
+</head>
+<body>
+<h1>vendor-sync — modules and what they own (package diagram)</h1>
+<p class="sub">Each box is one file in <code>scripts/</code> with what it owns. Every export, with its signature, is listed in spec.md, Module interfaces. Dependencies point downwards only; an entry script may import any library module.</p>
+
+<div class="mod"><div class="name">entry scripts <small>export nothing · each parses its arguments and calls run()</small></div>
+  <div class="entry"><span>vendor-add.mjs</span><span>vendor-sync.mjs</span><span>vendor-remove.mjs</span><span>vendor-list.mjs</span></div>
+</div>
+<div class="dep">import</div>
+
+<div class="pair">
+  <div class="mod"><div class="name">merge.mjs <small>the merge, plan, outcomes, abort</small></div>
+    <ul class="one" style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:12px"><li>the change description</li><li>the merge start: prefix, name, merge-tree, materialize, stages</li><li>plan.json</li><li>outcomes after the commit</li><li>the abort restore and the whole of --abort</li></ul>
+  </div>
+  <div class="side">merge.mjs<br>imports<br>▶</div>
+  <div class="mod"><div class="name">connection.mjs <small>a connection's files</small></div>
+    <ul class="one" style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:12px"><li>slug and directory</li><li>the manifest and its marker</li><li>the stored base and its check</li><li>scratch</li><li>the commit at --continue</li></ul>
+  </div>
+</div>
+<div class="dep">merge.mjs and connection.mjs import git.mjs</div>
+
+<div class="mod"><div class="name">git.mjs <small>every git invocation</small></div>
+  <ul class="three" style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:12px"><li>spawning git, as text or bytes</li><li>repository root, version and in-progress checks</li><li>refs and the fetch</li><li>commits, trees and prefixed trees</li><li>the index: entries, unmerged paths, stage lines</li><li>restore and commit of named paths</li></ul>
+</div>
+<div class="dep">git.mjs imports contract.mjs</div>
+
+<div class="mod"><div class="name">contract.mjs <small>the script contract</small></div>
+  <ul class="three" style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;font-size:12px"><li>exit codes and ScriptError</li><li>run(): the only writer of stdout and the exit code</li><li>argument parsing</li></ul>
+</div>
+
+<div class="legend">
+  <strong>Legend</strong>
+  <span class="mod"><span class="name">module.mjs</span></span><span>one file; beneath its name, what it owns</span>
+  <span>▼ ▶ labeled arrow: which module imports which</span>
+</div>
+</body>
+</html>

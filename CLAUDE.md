@@ -34,6 +34,7 @@ tests/
   cli/        # unit tests for CLI commands
   features/   # mirrors src/features/ — integration + unit tests per feature
   shared/     # unit tests for src/shared/
+  skills/     # mirrors .claude/skills/ — vendor-sync's own test suite
   _support/   # test helpers: runHook, buildFakeProject
 hooks/
   hooks.json  # generated — see docs/adr/0001-hooks-json-generation.md
@@ -43,6 +44,8 @@ templates/
   default-config.yml  # written by `nessy init`
 bin/
   nessy       # bash wrapper; Claude Code adds bin/ to PATH when plugin is active
+.claude/
+  skills/vendor-sync/  # project-local, git-tracked skill, never published with the plugin; its scripts are .mjs run directly, no build step
 ```
 
 ## Architecture
