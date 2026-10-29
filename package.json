@@ -1,6 +1,6 @@
 {
   "name": "nessy",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "Claude Code plugin: AI development workflow enforcement",
   "type": "module",
   "bin": {

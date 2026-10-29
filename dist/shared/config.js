@@ -8,7 +8,7 @@ const RuleSchema = z.object({
         .transform((v) => (typeof v === "string" ? [v] : v)),
     require: z.array(z.string()).min(1),
 });
-const ConfigSchema = z.object({
+export const ConfigSchema = z.object({
     version: z.literal(1),
     hints: z.boolean().default(true),
     log_level: LevelSchema.default("info"),
@@ -37,7 +37,7 @@ const ConfigSchema = z.object({
         outputFile: z.string(),
         extraContext: z.string().nullable().default(null),
     })
-        .optional()
+        .optional(),
 });
 export class ConfigError extends Error {
     filePath;
