@@ -1,18 +1,19 @@
 ---
 name: writing-plans
 description: Use when you have a spec or requirements for a multi-step task, before touching code
+allowed-tools: Bash(nessy:*)
 ---
 
 # Writing Plans
 
 ## Overview
 
-Write a comprehensive implementation plan. You can assume the engineer has the following context:
+Write a comprehensive implementation plan. You can assume the engineer implementing the plan has the following context:
 
 * CLAUDE.md file
 * File/Folder specific guidelines: !`nessy config rules`
 
-Assume the engineer follows information provided from the above sources but don't expect the engineer to have more context. Also expect him to have questionable taste outside the above specified guidelines. Document everything they need to know: which files to touch for each task, important code snippets, test scenarios (prosa), docs and ADR they might need to read. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD.
+Assume the engineer follows information provided from the above sources but don't expect the engineer to have more context. Also expect him to have questionable taste outside the above specified guidelines.
 
 **Announce at start:** "I'm using the writing-plans skill to create the implementation plan."
 

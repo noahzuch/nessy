@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>vendor-sync — the merge</title>
+<style>
+  body { margin: 0; padding: 24px; background: #fff; color: #1f2328; font: 14px/1.4 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; width: 900px; }
+  h1 { font-size: 18px; margin: 0 0 6px; }
+  p { margin: 0 0 10px; color: #57606a; font-size: 12.5px; }
+  svg text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 12px; }
+  .m { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; }
+</style>
+</head>
+<body>
+<h1>vendor-sync — the merge a start runs (flow diagram)</h1>
+<p>From three trees to the conflict state in <code>&lt;dir&gt;</code>. Every box is one step; git does all the merging and all the file writing.</p>
+<svg width="880" height="790" viewBox="0 0 880 790" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker>
+  </defs>
+
+  <!-- inputs -->
+  <g>
+    <rect x="20"  y="10" width="250" height="70" rx="6" fill="#fff8e6" stroke="#57606a" stroke-width="1.5" stroke-dasharray="5 3"/>
+    <text x="145" y="32" text-anchor="middle" font-weight="600">base</text>
+    <text x="145" y="50" text-anchor="middle" font-size="11.5">one of: <tspan class="m">base_tree</tspan> /</text>
+    <text x="145" y="66" text-anchor="middle" class="m">&lt;sha&gt;:&lt;path&gt; / empty tree</text>
+
+    <rect x="315" y="10" width="250" height="70" rx="6" fill="#fff8e6" stroke="#57606a" stroke-width="1.5" stroke-dasharray="5 3"/>
+    <text x="440" y="32" text-anchor="middle" font-weight="600">local</text>
+    <text x="440" y="50" text-anchor="middle" class="m">HEAD:&lt;dir&gt;</text>
+    <text x="440" y="66" text-anchor="middle" font-size="11" fill="#57606a">clean directory, so HEAD = local</text>
+
+    <rect x="610" y="10" width="250" height="70" rx="6" fill="#fff8e6" stroke="#57606a" stroke-width="1.5" stroke-dasharray="5 3"/>
+    <text x="735" y="32" text-anchor="middle" font-weight="600">upstream</text>
+    <text x="735" y="50" text-anchor="middle" class="m">&lt;target&gt;:&lt;path&gt;</text>
+    <text x="735" y="66" text-anchor="middle" font-size="11" fill="#57606a">from the fetched tracking ref</text>
+  </g>
+
+  <g stroke="#57606a" stroke-width="1.5" fill="none">
+    <path d="M145,80 L145,104" marker-end="url(#a)"/>
+    <path d="M440,80 L440,104" marker-end="url(#a)"/>
+    <path d="M735,80 L735,104" marker-end="url(#a)"/>
+  </g>
+
+  <!-- step boxes -->
+  <g>
+    <rect x="20" y="106" width="840" height="50" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.5"/>
+    <text x="36" y="127" font-weight="600">Prefix</text>
+    <text x="110" y="127" class="m">GIT_INDEX_FILE=&lt;tmp&gt; git read-tree --prefix=&lt;dir&gt;/ … ; git write-tree</text>
+    <text x="110" y="145" font-size="11.5" fill="#57606a">every path becomes a repository path; a root .vendor.json is dropped from base and upstream</text>
+
+    <rect x="20" y="180" width="840" height="50" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.5"/>
+    <text x="36" y="201" font-weight="600">Name</text>
+    <text x="110" y="201" class="m">git commit-tree ×3 ; git update-ref refs/vendor-{base,local,upstream}</text>
+    <text x="110" y="219" font-size="11.5" fill="#57606a">plain refs, never branches; the names become the conflict-marker labels</text>
+
+    <rect x="20" y="254" width="840" height="50" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.5"/>
+    <text x="36" y="275" font-weight="600">Merge</text>
+    <text x="110" y="275" class="m">git -c merge.conflictStyle=diff3 merge-tree --write-tree -z</text>
+    <text x="110" y="293" class="m">    --merge-base=vendor-base vendor-local vendor-upstream</text>
+    <text x="600" y="293" font-size="11.5" fill="#57606a">exit 0 clean · 1 conflicts · else stop</text>
+
+    <rect x="20" y="328" width="840" height="44" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.5"/>
+    <text x="36" y="355" font-weight="600">Unname</text>
+    <text x="110" y="355" class="m">git update-ref -d refs/vendor-{base,local,upstream}</text>
+    <text x="520" y="355" font-size="11.5" fill="#57606a">in a finally — on every exit path</text>
+
+    <rect x="20" y="396" width="840" height="50" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.5"/>
+    <text x="36" y="417" font-weight="600">Parse</text>
+    <text x="110" y="417" class="m">Buffer.split(NUL) → merged tree · stage records · messages</text>
+    <text x="110" y="435" font-size="11.5" fill="#cf222e">bytes only — a text decode drops the NULs and the conflicts vanish</text>
+
+    <rect x="20" y="470" width="840" height="50" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.5"/>
+    <text x="36" y="491" font-weight="600">Plan</text>
+    <text x="110" y="491" class="m">.vendor-sync/scratch/&lt;slug&gt;/plan.json</text>
+    <text x="110" y="509" font-size="11.5" fill="#57606a">files + touched (diff-tree local→merged ∪ stage paths) — written before any file in &lt;dir&gt; changes</text>
+
+    <rect x="20" y="614" width="840" height="44" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.5"/>
+    <text x="36" y="641" font-weight="600">Materialize</text>
+    <text x="130" y="641" class="m">git restore --source=&lt;merged tree&gt; --staged --worktree -- &lt;dir&gt; :(exclude)&lt;dir&gt;/.vendor.json</text>
+
+    <rect x="20" y="682" width="840" height="44" rx="8" fill="#ddf4ff" stroke="#0969da" stroke-width="1.5"/>
+    <text x="36" y="709" font-weight="600">Conflicts</text>
+    <text x="130" y="709" class="m">git update-index --index-info  ← "0 000…0\t&lt;path&gt;" + stage records</text>
+
+    <rect x="20" y="544" width="840" height="44" rx="8" fill="#dafbe1" stroke="#1a7f37" stroke-width="1.5"/>
+    <text x="36" y="571" font-weight="600">Open</text>
+    <text x="130" y="571">marker <tspan class="m">merging</tspan> — from here an interruption is an open action that --abort undoes</text>
+  </g>
+
+  <g stroke="#57606a" stroke-width="1.5" fill="none">
+    <path d="M440,156 L440,178" marker-end="url(#a)"/>
+    <path d="M440,230 L440,252" marker-end="url(#a)"/>
+    <path d="M440,304 L440,326" marker-end="url(#a)"/>
+    <path d="M440,372 L440,394" marker-end="url(#a)"/>
+    <path d="M440,446 L440,468" marker-end="url(#a)"/>
+    <path d="M440,520 L440,542" marker-end="url(#a)"/>
+    <path d="M440,588 L440,610" marker-end="url(#a)"/>
+    <path d="M440,658 L440,680" marker-end="url(#a)"/>
+    <path d="M440,726 L440,746" marker-end="url(#a)"/>
+  </g>
+
+  <rect x="230" y="748" width="420" height="38" rx="19" fill="#dafbe1" stroke="#1a7f37" stroke-width="2"/>
+  <text x="440" y="772" text-anchor="middle" font-weight="600">Staged: switch the marker to <tspan class="m">merge_staged</tspan> last</text>
+</svg>
+<svg width="880" height="40" viewBox="0 0 880 40" xmlns="http://www.w3.org/2000/svg">
+  <line x1="0" y1="4" x2="880" y2="4" stroke="#d0d7de"/>
+  <text x="0" y="28" font-weight="600" font-size="12.5">Legend</text>
+  <rect x="60" y="14" width="40" height="20" rx="4" fill="#fff8e6" stroke="#57606a" stroke-width="1.5" stroke-dasharray="5 3"/><text x="106" y="29" font-size="12">input tree</text>
+  <rect x="180" y="14" width="40" height="20" rx="5" fill="#ddf4ff" stroke="#0969da" stroke-width="1.5"/><text x="226" y="29" font-size="12">step</text>
+  <rect x="430" y="14" width="40" height="20" rx="10" fill="#dafbe1" stroke="#1a7f37" stroke-width="2"/><text x="476" y="29" font-size="12">marker write</text>
+</svg>
+</body>
+</html>

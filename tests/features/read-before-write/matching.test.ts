@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { matchRules, unionRequires, isRequired } from "src/features/read-before-write/lib/matching.js";
+import {
+  matchRules,
+  unionRequires,
+  isRequired,
+} from "src/features/read-before-write/lib/matching.js";
 import type { Rule } from "src/shared/config.js";
 
 describe("matchRules", () => {
@@ -59,6 +63,13 @@ describe("matchRules", () => {
     const rule: Rule = { name: "r", match: ["src/**"], require: ["x"] };
     const result = matchRules("src\\foo.ts", [rule]);
     expect(result).toEqual([rule]);
+  });
+
+  // Test 8: paths above the project root cannot match a root-relative glob
+  it("returns empty array for a path outside the project root", () => {
+    const rule: Rule = { name: "r", match: ["**"], require: ["x"] };
+    expect(matchRules("../shared/style.md", [rule])).toEqual([]);
+    expect(matchRules("..\\shared\\style.md", [rule])).toEqual([]);
   });
 });
 

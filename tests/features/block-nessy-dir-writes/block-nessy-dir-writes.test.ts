@@ -11,7 +11,7 @@ describe("block-nessy-dir-writes hook", () => {
   });
 
   it("target under .nessy/ → block with self-mod message", () => {
-    p = buildFakeProject({ config: "version: 1\nrules: []\n" });
+    p = buildFakeProject({ config: { rules: [] } });
     const target = join(p.projectRoot, ".nessy/config.yml");
     const r = runHook(
       "features/block-nessy-dir-writes/hooks/block-nessy-dir-writes",
@@ -30,7 +30,7 @@ describe("block-nessy-dir-writes hook", () => {
 
   it("target outside .nessy/ → allow", () => {
     p = buildFakeProject({
-      config: "version: 1\nrules: []\n",
+      config: { rules: [] },
       files: { "src/app.ts": "x" },
     });
     const target = join(p.projectRoot, "src/app.ts");

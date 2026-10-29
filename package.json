@@ -10,9 +10,9 @@
     "build": "tsc && tsc-alias && node scripts/merge-hooks.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "tsc --noEmit",
-    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\""
+    "lint": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "format": "prettier --write \"{src,tests,scripts}/**/*.{ts,mjs}\" && prettier --write --no-error-on-unmatched-pattern \".claude/skills/vendor-sync/scripts/*.mjs\"",
+    "format:check": "prettier --check \"{src,tests,scripts}/**/*.{ts,mjs}\" && prettier --check --no-error-on-unmatched-pattern \".claude/skills/vendor-sync/scripts/*.mjs\""
   },
   "engines": {
     "node": ">=20"

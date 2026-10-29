@@ -9,9 +9,12 @@ npm install          # install deps
 npm test             # run vitest suite (all tests)
 npm run test:watch   # vitest in watch mode
 npm run build        # tsc + tsc-alias + merge-hooks → dist/
-npm run lint         # tsc --noEmit (type-check only)
+npm run lint         # type-check src and tests, no emit
 npm run format       # prettier write
+npm run format:check # prettier check, no write
 ```
+
+**Always run these scripts — never call `vitest`, `tsc`, or `prettier` directly.** The scripts carry the flags and file scopes that should be used.
 
 Build = `tsc && tsc-alias && node scripts/merge-hooks.mjs`. `tsc-alias` post-processes the compiled output to rewrite `src/*` path aliases to relative paths; `merge-hooks.mjs` regenerates `hooks/hooks.json` from each feature's `hooks.fragment.json`. **Always rebuild before running hook integration tests** — they invoke `dist/` directly via `node`.
 
@@ -31,6 +34,7 @@ tests/
   cli/        # unit tests for CLI commands
   features/   # mirrors src/features/ — integration + unit tests per feature
   shared/     # unit tests for src/shared/
+  skills/     # mirrors .claude/skills/ — vendor-sync's own test suite
   _support/   # test helpers: runHook, buildFakeProject
 hooks/
   hooks.json  # generated — see docs/adr/0001-hooks-json-generation.md
@@ -40,6 +44,8 @@ templates/
   default-config.yml  # written by `nessy init`
 bin/
   nessy       # bash wrapper; Claude Code adds bin/ to PATH when plugin is active
+.claude/
+  skills/vendor-sync/  # project-local, git-tracked skill, never published with the plugin; its scripts are .mjs run directly, no build step
 ```
 
 ## Architecture

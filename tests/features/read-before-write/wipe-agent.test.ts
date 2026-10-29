@@ -24,7 +24,7 @@ describe("wipe-agent hook", () => {
   });
 
   it("root file deleted on PreCompact (no agent_id)", () => {
-    p = buildFakeProject({ config: `version: 1\nrules: []\n` });
+    p = buildFakeProject({ config: { rules: [] } });
     const rootPath = seedCacheFile(p.projectRoot, "sid", null);
     expect(existsSync(rootPath)).toBe(true);
     const r = runHook(
@@ -41,7 +41,7 @@ describe("wipe-agent hook", () => {
   });
 
   it("subagent file deleted on SubagentStop (with agent_id), root preserved", () => {
-    p = buildFakeProject({ config: `version: 1\nrules: []\n` });
+    p = buildFakeProject({ config: { rules: [] } });
     const rootPath = seedCacheFile(p.projectRoot, "sid", null);
     const agentPath = seedCacheFile(p.projectRoot, "sid", "a1");
     expect(existsSync(rootPath)).toBe(true);
@@ -62,7 +62,7 @@ describe("wipe-agent hook", () => {
   });
 
   it("ENOENT-tolerant on missing file — exits 0", () => {
-    p = buildFakeProject({ config: `version: 1\nrules: []\n` });
+    p = buildFakeProject({ config: { rules: [] } });
     // No cache file seeded
     const r = runHook(
       "features/read-before-write/hooks/wipe-agent",

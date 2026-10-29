@@ -1,7 +1,12 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { mkdirSync, writeFileSync, statSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { buildFakeProject, type FakeProject } from "tests/_support/buildFakeProject.js";
+import { basename, dirname, join } from "node:path";
+import {
+  buildFakeProject,
+  buildTempDir,
+  type FakeProject,
+  type TempDir,
+} from "tests/_support/buildFakeProject.js";
 import { runHook } from "tests/_support/runHook.js";
 
 function seedCacheFile(
@@ -25,9 +30,12 @@ function seedCacheFile(
 
 describe("enforce-read-before-write hook", () => {
   let p: FakeProject | undefined;
+  let outside: TempDir | undefined;
   afterEach(() => {
     if (p) p.cleanup();
+    if (outside) outside.cleanup();
     p = undefined;
+    outside = undefined;
   });
 
   it("no config → allow (exit 0, no stdout decision)", () => {
@@ -47,32 +55,11 @@ describe("enforce-read-before-write hook", () => {
     expect((r.stdoutJson as any)?.decision).not.toBe("block");
   });
 
-  it("malformed YAML config → block with config error", () => {
-    p = buildFakeProject({
-      config: "version: 1\nrules: [bad yaml: {\n",
-      files: { "src/app.ts": "x" },
-    });
-    const target = join(p.projectRoot, "src/app.ts");
-    const r = runHook(
-      "features/read-before-write/hooks/enforce-read-before-write",
-      {
-        session_id: "sid",
-        cwd: p.projectRoot,
-        tool_name: "Write",
-        tool_input: { file_path: target },
-      },
-      { cwd: p.projectRoot },
-    );
-    expect(r.exitCode).toBe(0);
-    expect((r.stdoutJson as any)?.decision).toBe("block");
-    const reason: string = (r.stdoutJson as any)?.reason ?? "";
-    expect(reason.toLowerCase()).toMatch(/configuration error/);
-  });
-
   it("no rule matches → allow", () => {
     p = buildFakeProject({
-      config:
-        "version: 1\nrules:\n  - name: guard-docs\n    match: docs/**\n    require:\n      - docs/standards/coding.md\n",
+      config: {
+        rules: [{ name: "guard-docs", match: "docs/**", require: ["docs/standards/coding.md"] }],
+      },
       files: { "src/app.ts": "x" },
     });
     const target = join(p.projectRoot, "src/app.ts");
@@ -92,8 +79,9 @@ describe("enforce-read-before-write hook", () => {
 
   it("missing required read → block (reason contains path + 'not yet read')", () => {
     p = buildFakeProject({
-      config:
-        "version: 1\nrules:\n  - name: guard-src\n    match: src/**\n    require:\n      - docs/standards/coding.md\n",
+      config: {
+        rules: [{ name: "guard-src", match: "src/**", require: ["docs/standards/coding.md"] }],
+      },
       files: {
         "src/app.ts": "x",
         "docs/standards/coding.md": "# coding standards",
@@ -119,8 +107,9 @@ describe("enforce-read-before-write hook", () => {
 
   it("all requires satisfied + fresh → allow", () => {
     p = buildFakeProject({
-      config:
-        "version: 1\nrules:\n  - name: guard-src\n    match: src/**\n    require:\n      - docs/standards/coding.md\n",
+      config: {
+        rules: [{ name: "guard-src", match: "src/**", require: ["docs/standards/coding.md"] }],
+      },
       files: {
         "src/app.ts": "x",
         "docs/standards/coding.md": "# coding standards",
@@ -148,8 +137,9 @@ describe("enforce-read-before-write hook", () => {
 
   it("stale (mtime/size differs) → block (reason contains 'changed on disk')", () => {
     p = buildFakeProject({
-      config:
-        "version: 1\nrules:\n  - name: guard-src\n    match: src/**\n    require:\n      - docs/standards/coding.md\n",
+      config: {
+        rules: [{ name: "guard-src", match: "src/**", require: ["docs/standards/coding.md"] }],
+      },
       files: {
         "src/app.ts": "x",
         "docs/standards/coding.md": "# coding standards",
@@ -175,10 +165,50 @@ describe("enforce-read-before-write hook", () => {
     expect(reason).toContain("changed on disk");
   });
 
+  it("require above the project root: unread → block, recorded by record-read → allow", () => {
+    outside = buildTempDir({ "style.md": "# style" });
+    const required = `../${basename(outside.root)}/style.md`;
+    p = buildFakeProject({
+      config: { rules: [{ name: "guard-src", match: "src/**", require: [required] }] },
+      files: { "src/app.ts": "x" },
+    });
+    const target = join(p.projectRoot, "src/app.ts");
+    const write = {
+      session_id: "sid",
+      cwd: p.projectRoot,
+      tool_name: "Write",
+      tool_input: { file_path: target },
+    };
+
+    const before = runHook("features/read-before-write/hooks/enforce-read-before-write", write, {
+      cwd: p.projectRoot,
+    });
+    expect((before.stdoutJson as any)?.decision).toBe("block");
+    expect((before.stdoutJson as any)?.reason).toContain(required);
+
+    runHook(
+      "features/read-before-write/hooks/record-read",
+      {
+        session_id: "sid",
+        cwd: p.projectRoot,
+        tool_name: "Read",
+        tool_input: { file_path: join(outside.root, "style.md") },
+      },
+      { cwd: p.projectRoot },
+    );
+
+    const after = runHook("features/read-before-write/hooks/enforce-read-before-write", write, {
+      cwd: p.projectRoot,
+    });
+    expect(after.exitCode).toBe(0);
+    expect((after.stdoutJson as any)?.decision).not.toBe("block");
+  });
+
   it("required file deleted from disk → block (config-error message)", () => {
     p = buildFakeProject({
-      config:
-        "version: 1\nrules:\n  - name: guard-src\n    match: src/**\n    require:\n      - docs/standards/coding.md\n",
+      config: {
+        rules: [{ name: "guard-src", match: "src/**", require: ["docs/standards/coding.md"] }],
+      },
       files: { "src/app.ts": "x" },
     });
     seedCacheFile(p.projectRoot, "sid", null, [

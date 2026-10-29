@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>vendor-sync — a sync, end to end</title>
+<style>
+  body { margin: 0; padding: 24px; background: #fff; color: #1f2328; font: 14px/1.4 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; width: 900px; }
+  h1 { font-size: 18px; margin: 0 0 6px; }
+  p { margin: 0 0 10px; color: #57606a; font-size: 12.5px; }
+  svg text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 12px; }
+  .m { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; }
+</style>
+</head>
+<body>
+<h1>vendor-sync — a sync with conflicts, end to end (sequence diagram)</h1>
+<p>Time runs downwards. The agent talks to the user and runs scripts; only the script runs git; the user resolves with their own tool. The steps inside the merge are in merge.html.</p>
+<svg width="880" height="730" viewBox="0 0 880 730" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#1f2328"/></marker>
+    <marker id="o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker>
+  </defs>
+
+  <!-- participants: x = 70 User, 250 Agent, 450 script, 640 git, 810 IDE -->
+  <g font-weight="600" text-anchor="middle">
+    <rect x="15"  y="10" width="110" height="34" rx="17" fill="#fbefff" stroke="#8250df" stroke-width="2"/><text x="70"  y="32">User</text>
+    <rect x="195" y="10" width="110" height="34" rx="17" fill="#fbefff" stroke="#8250df" stroke-width="2"/><text x="250" y="32">Agent</text>
+    <rect x="380" y="10" width="140" height="34" rx="6" fill="#fff" stroke="#57606a" stroke-width="2"/><text x="450" y="32" class="m" font-weight="600">vendor-sync.mjs</text>
+    <rect x="585" y="10" width="110" height="34" rx="6" fill="#fff8e6" stroke="#57606a" stroke-width="2" stroke-dasharray="5 3"/><text x="640" y="32">git</text>
+    <rect x="740" y="10" width="130" height="34" rx="17" fill="#fbefff" stroke="#8250df" stroke-width="2"/><text x="805" y="32">IDE / mergetool</text>
+  </g>
+  <g stroke="#8c959f" stroke-dasharray="4 4">
+    <line x1="70"  y1="44" x2="70"  y2="720"/>
+    <line x1="250" y1="44" x2="250" y2="720"/>
+    <line x1="450" y1="44" x2="450" y2="720"/>
+    <line x1="640" y1="44" x2="640" y2="720"/>
+    <line x1="805" y1="44" x2="805" y2="720"/>
+  </g>
+
+  <!-- start -->
+  <g stroke="#1f2328" stroke-width="1.3" fill="none">
+    <line x1="70" y1="76" x2="248" y2="76" marker-end="url(#a)"/>
+    <line x1="250" y1="106" x2="448" y2="106" marker-end="url(#a)"/>
+    <line x1="450" y1="136" x2="638" y2="136" marker-end="url(#a)"/>
+    <line x1="450" y1="166" x2="638" y2="166" marker-end="url(#a)"/>
+    <line x1="450" y1="196" x2="638" y2="196" marker-end="url(#a)"/>
+  </g>
+  <g stroke="#57606a" stroke-width="1.3" fill="none" stroke-dasharray="5 3">
+    <line x1="450" y1="226" x2="252" y2="226" marker-end="url(#o)"/>
+    <line x1="250" y1="256" x2="72" y2="256" marker-end="url(#o)"/>
+  </g>
+  <text x="160" y="70" text-anchor="middle">"sync skills/demo"</text>
+  <text x="350" y="100" text-anchor="middle" class="m">… skills/demo</text>
+  <text x="545" y="130" text-anchor="middle">preconditions</text>
+  <text x="545" y="160" text-anchor="middle">fetch; base check</text>
+  <text x="545" y="190" text-anchor="middle">the merge (merge.html)</text>
+  <text x="350" y="220" text-anchor="middle">exit 0 · <tspan class="m">merge_staged</tspan></text>
+  <text x="160" y="250" text-anchor="middle">files table, notes, prompt</text>
+
+  <!-- between the calls -->
+  <rect x="20" y="276" width="850" height="118" rx="8" fill="#f6f8fa" stroke="#8c959f" stroke-dasharray="6 3"/>
+  <text x="34" y="295" font-weight="600">between the calls</text>
+  <g stroke="#1f2328" stroke-width="1.3" fill="none">
+    <line x1="70" y1="320" x2="803" y2="320" marker-end="url(#a)"/>
+    <line x1="805" y1="350" x2="642" y2="350" marker-end="url(#a)"/>
+  </g>
+  <text x="300" y="314" text-anchor="middle">resolves the conflicts and reviews the staged changes</text>
+  <text x="722" y="344" text-anchor="middle">writes index, files</text>
+  <rect x="150" y="364" width="300" height="22" rx="4" fill="#fff" stroke="#d0d7de"/>
+  <text x="300" y="379" text-anchor="middle" fill="#57606a" font-size="11">agent waits, answers questions, touches no file</text>
+
+  <!-- first continue: unresolved -->
+  <g stroke="#1f2328" stroke-width="1.3" fill="none">
+    <line x1="70" y1="420" x2="248" y2="420" marker-end="url(#a)"/>
+    <line x1="250" y1="450" x2="448" y2="450" marker-end="url(#a)"/>
+    <line x1="450" y1="480" x2="638" y2="480" marker-end="url(#a)"/>
+  </g>
+  <g stroke="#57606a" stroke-width="1.3" fill="none" stroke-dasharray="5 3">
+    <line x1="450" y1="510" x2="252" y2="510" marker-end="url(#o)"/>
+    <line x1="250" y1="540" x2="72" y2="540" marker-end="url(#o)"/>
+  </g>
+  <text x="160" y="414" text-anchor="middle">"finished"</text>
+  <text x="350" y="444" text-anchor="middle" class="m">… --continue</text>
+  <text x="545" y="474" text-anchor="middle">unmerged paths?</text>
+  <text x="350" y="504" text-anchor="middle">exit 1 · <tspan class="m">unresolved</tspan></text>
+  <text x="160" y="534" text-anchor="middle">paths, then the prompt again</text>
+
+  <!-- second continue: commit -->
+  <g stroke="#1f2328" stroke-width="1.3" fill="none">
+    <line x1="70" y1="574" x2="248" y2="574" marker-end="url(#a)"/>
+    <line x1="250" y1="604" x2="448" y2="604" marker-end="url(#a)"/>
+    <line x1="450" y1="634" x2="638" y2="634" marker-end="url(#a)"/>
+  </g>
+  <g stroke="#57606a" stroke-width="1.3" fill="none" stroke-dasharray="5 3">
+    <line x1="450" y1="664" x2="252" y2="664" marker-end="url(#o)"/>
+    <line x1="250" y1="694" x2="72" y2="694" marker-end="url(#o)"/>
+  </g>
+  <text x="160" y="568" text-anchor="middle">resolves the rest; "finished"</text>
+  <text x="350" y="598" text-anchor="middle" class="m">… --continue</text>
+  <text x="545" y="628" text-anchor="middle">base, manifest, commit</text>
+  <text x="350" y="658" text-anchor="middle">exit 0 · <tspan class="m">synced</tspan></text>
+  <text x="160" y="688" text-anchor="middle">report with the commit</text>
+</svg>
+<svg width="880" height="44" viewBox="0 0 880 44" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"><path d="M0,0 L10,5 L0,10 z" fill="#1f2328"/></marker>
+    <marker id="o2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"><path d="M0,0 L10,5 L0,10 z" fill="#57606a"/></marker>
+  </defs>
+  <line x1="0" y1="4" x2="880" y2="4" stroke="#d0d7de"/>
+  <text x="0" y="30" font-weight="600" font-size="12.5">Legend</text>
+  <rect x="58" y="16" width="34" height="20" rx="10" fill="#fbefff" stroke="#8250df" stroke-width="2"/><text x="98" y="31" font-size="12">actor</text>
+  <rect x="140" y="16" width="34" height="20" rx="4" fill="#fff" stroke="#57606a" stroke-width="2"/><text x="180" y="31" font-size="12">script</text>
+  <rect x="226" y="16" width="34" height="20" rx="4" fill="#fff8e6" stroke="#57606a" stroke-width="2" stroke-dasharray="5 3"/><text x="266" y="31" font-size="12">git and disk</text>
+  <line x1="350" y1="26" x2="385" y2="26" stroke="#1f2328" stroke-width="1.3" marker-end="url(#a2)"/><text x="391" y="31" font-size="12">call or action</text>
+  <line x1="480" y1="26" x2="515" y2="26" stroke="#57606a" stroke-width="1.3" stroke-dasharray="5 3" marker-end="url(#o2)"/><text x="521" y="31" font-size="12">result</text>
+  <rect x="580" y="16" width="34" height="20" rx="4" fill="#f6f8fa" stroke="#8c959f" stroke-dasharray="6 3"/><text x="620" y="31" font-size="12">frame: a phase</text>
+  <rect x="720" y="16" width="34" height="20" rx="4" fill="#fff" stroke="#d0d7de"/><text x="760" y="31" font-size="12">note</text>
+</svg>
+</body>
+</html>
